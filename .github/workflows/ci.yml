@@ -48,10 +48,24 @@ jobs:
       - run: pip install -e ".[test]" "httpx==0.27.0" "pydantic==2.5.0" "respx==0.21.1"
       - run: python -m pytest -q
 
+  generated:
+    # The checked-in models are exactly what the checked-in schema generates.
+    # tests/test_contract.py checks the client against that same schema.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: pip install "datamodel-code-generator[http]==0.26.5"
+      - run: scripts/generate_models.sh tests/data/openapi.json generated_models.py
+      - run: diff -u <(sed '1,3d' src/atb_client/generated/models.py) <(sed '1,3d' generated_models.py)
+
   contract:
     # Regenerates the models from the deployed schema and fails on any difference from
-    # the checked-in src/atb_client/generated/models.py. Allowed to fail until the v1
-    # server publishes /api/v1/openapi.json and the generated models are first committed.
+    # the checked-in src/atb_client/generated/models.py, i.e. whenever the deployed
+    # server has moved away from tests/data/openapi.json. Allowed to fail until the v1
+    # server is deployed and publishes /api/v1/openapi.json.
     runs-on: ubuntu-latest
     continue-on-error: true
     steps:
