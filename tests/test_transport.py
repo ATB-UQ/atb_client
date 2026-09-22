@@ -124,3 +124,87 @@ def test_max_attempts_configurable(api, clock):
     with pytest.raises(ServiceUnavailable):
         c.molecules.get(21)
     assert route.call_count == 1
+
+
+# --------------------------------------------------------------------------- redirects
+
+
+def _moved(molid: int, canonical: int, location: str) -> httpx.Response:
+    return httpx.Response(
+        301,
+        json=problem("molecule-moved", 301, molid=molid, canonical_molid=canonical),
+        headers={**PROBLEM_HEADERS, "Location": location},
+    )
+
+
+def test_get_follows_a_merged_duplicate_301_keeping_the_key(api, client, clock):
+    api.get("/molecules/20").mock(return_value=_moved(20, 21, "/api/v1/molecules/21"))
+    route = api.get("/molecules/21").respond(200, json=molecule(21))
+    mol = client.molecules.get(20)
+    assert mol.molid == 21
+    assert route.calls.last.request.headers["Authorization"] == f"Bearer {KEY}"
+    assert clock.sleeps == []  # a redirect is not a retry
+
+
+def test_redirect_keeps_the_query_it_is_given(api, client):
+    api.get("/molecules/20/files/itp_aa").mock(
+        return_value=_moved(20, 21, "/api/v1/molecules/21/files/itp_aa?hash=abc12")
+    )
+    route = api.get("/molecules/21/files/itp_aa").respond(200, content=b"[ moleculetype ]\n")
+    assert client.files.download(20, "itp_aa", hash="abc12") == b"[ moleculetype ]\n"
+    assert route.calls.last.request.url.params["hash"] == "abc12"
+
+
+def test_redirect_to_another_origin_drops_the_key(api, client):
+    api.get("/molecules/20").mock(
+        return_value=_moved(20, 21, "https://mirror.example.org/api/v1/molecules/21")
+    )
+    elsewhere = api.get("https://mirror.example.org/api/v1/molecules/21").respond(
+        200, json=molecule(21)
+    )
+    client.molecules.get(20)
+    assert "Authorization" not in elsewhere.calls.last.request.headers
+
+
+@pytest.mark.parametrize(
+    "location",
+    ["http://atb.test/api/v1/molecules/21", "https://atb.test:8443/api/v1/molecules/21"],
+)
+def test_a_scheme_or_port_change_is_another_origin(api, client, location):
+    api.get("/molecules/20").mock(return_value=_moved(20, 21, location))
+    other = api.get(location).respond(200, json=molecule(21))
+    client.molecules.get(20)
+    assert "Authorization" not in other.calls.last.request.headers
+
+
+def test_a_redirect_loop_stops(api, client):
+    route = api.get("/molecules/20").mock(return_value=_moved(20, 20, "/api/v1/molecules/20"))
+    from atb_client import MoleculeMoved
+
+    with pytest.raises(MoleculeMoved) as info:
+        client.molecules.get(20)
+    assert route.call_count == 6  # the request and five redirects
+    assert info.value.canonical_molid == 20
+
+
+def test_a_non_get_redirect_is_raised_not_followed(api, client):
+    from atb_client import MoleculeMoved
+
+    route = api.post("/structures/rmsd").mock(
+        return_value=_moved(20, 21, "/api/v1/structures/rmsd")
+    )
+    with pytest.raises(MoleculeMoved) as info:
+        client.structures.rmsd(molids=[20, 22])
+    assert route.call_count == 1
+    assert info.value.molid == 20
+    assert info.value.canonical_molid == 21
+    assert info.value.location == "/api/v1/structures/rmsd"
+
+
+def test_async_client_follows_redirects_too(api, aclient):
+    import asyncio
+
+    api.get("/molecules/20").mock(return_value=_moved(20, 21, "/api/v1/molecules/21"))
+    api.get("/molecules/21").respond(200, json=molecule(21))
+    mol = asyncio.run(aclient.molecules.get(20))
+    assert mol.molid == 21

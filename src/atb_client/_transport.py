@@ -11,6 +11,14 @@ Retry policy (plan §8): retried with exponential backoff and jitter on 429, 502
 honoured as the delay; one longer than ``max_retry_after`` (default 60 s — e.g. a daily
 limit that resets at midnight UTC) is not slept on, and the exception is raised at
 once so the caller can decide.
+
+Redirects (``301``/``302``/``303``/``307``/``308``) are followed for ``GET`` and
+``HEAD`` only, at most :data:`MAX_REDIRECTS` in a row. The server answers ``301`` for a
+merged duplicate molecule, rewriting ``Location`` to the canonical molid with the
+sub-path and query kept. ``Authorization`` is sent on to the new location only when it
+is on the same origin (scheme, host and port) as the request that was redirected, so a
+key never leaves the host it was configured for. A redirect on any other method is not
+followed: it raises the mapped exception (``MoleculeMoved`` for a merged molecule).
 """
 
 from __future__ import annotations
@@ -20,6 +28,7 @@ import random
 import re
 import tempfile
 from dataclasses import dataclass, field
+from datetime import date, datetime
 from pathlib import Path
 from typing import Any, Dict, Generator, Iterable, Optional, Type, Union
 
@@ -31,6 +40,9 @@ from .exceptions import NetworkError, NotFound, error_from_response, retry_after
 PathLike = Union[str, "os.PathLike[str]"]
 
 RETRY_STATUSES = frozenset({429, 502, 503, 504})
+REDIRECT_STATUSES = frozenset({301, 302, 303, 307, 308})
+REDIRECT_METHODS = frozenset({"GET", "HEAD"})
+MAX_REDIRECTS = 5
 
 
 # --------------------------------------------------------------------------- effects
@@ -91,6 +103,8 @@ def _clean_params(params: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
             continue
         if isinstance(value, bool):
             value = "true" if value else "false"
+        elif isinstance(value, (datetime, date)):
+            value = value.isoformat()
         elif isinstance(value, (list, tuple, set, frozenset)):
             value = ",".join(str(v) for v in value)
         out[key] = value
@@ -116,18 +130,23 @@ def request(
     request streamed to a file, ``response.extensions['atb_written']`` is the path.
     """
     policy: RetryPolicy = client._retry
+    url: Union[str, httpx.URL] = f"{client.base_url}/{path.lstrip('/')}"
     cleaned = _clean_params(params)
+    strip_auth = False
     attempt = 0
+    redirects = 0
     while True:
         attempt += 1
         req = client._http.build_request(
             method,
-            f"{client.base_url}/{path.lstrip('/')}",
+            url,
             params=cleaned,
             json=json,
             content=content,
             headers=headers,
         )
+        if strip_auth:
+            req.headers.pop("Authorization", None)
         effect = Send(req, stream_to=stream_to, default_name=default_name)
         try:
             response = yield effect
@@ -140,6 +159,22 @@ def request(
             continue
 
         status = response.status_code
+        location = response.headers.get("Location")
+        if (
+            status in REDIRECT_STATUSES
+            and method.upper() in REDIRECT_METHODS
+            and location
+            and redirects < MAX_REDIRECTS
+        ):
+            redirects += 1
+            target = req.url.join(location)
+            # Once a redirect has left the origin the key was sent to, it stays off.
+            strip_auth = strip_auth or not _same_origin(req.url, target)
+            url, cleaned = target, None  # the query travels in Location
+            attempt -= 1  # a redirect is not a failed attempt
+            continue
+        if status in REDIRECT_STATUSES:
+            raise error_from_response(response, not_found=not_found, client=client)
         if status in RETRY_STATUSES and attempt < policy.max_attempts:
             delay = retry_after_seconds(response)
             if delay is None:
@@ -152,6 +187,10 @@ def request(
         if effect.written is not None:
             response.extensions["atb_written"] = effect.written
         return response
+
+
+def _same_origin(a: httpx.URL, b: httpx.URL) -> bool:
+    return (a.scheme, a.host, a.port) == (b.scheme, b.host, b.port)
 
 
 def json_of(response: httpx.Response) -> Any:

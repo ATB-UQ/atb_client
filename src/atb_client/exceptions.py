@@ -31,8 +31,10 @@ __all__ = [
     "ConfigurationError",
     "Conflict",
     "DuplicateMolecule",
+    "GenerationRequired",
     "JobFailed",
     "MoleculeFailed",
+    "MoleculeMoved",
     "MoleculeNotFound",
     "MoleculeRejected",
     "NetworkError",
@@ -129,8 +131,41 @@ class MoleculeNotFound(NotFound):
         return (self.problem.model_extra or {}).get("molid")
 
 
+class MoleculeMoved(APIError):
+    """301 ``molecule-moved`` on a request the client does not follow (anything but
+    ``GET``/``HEAD``): the molecule was a duplicate merged into ``.canonical_molid``.
+    ``GET`` requests follow the redirect instead and never raise this."""
+
+    @property
+    def molid(self) -> Optional[int]:
+        value = (self.problem.model_extra or {}).get("molid")
+        return int(value) if value is not None else None
+
+    @property
+    def canonical_molid(self) -> Optional[int]:
+        value = (self.problem.model_extra or {}).get("canonical_molid")
+        return int(value) if value is not None else None
+
+    @property
+    def location(self) -> Optional[str]:
+        return self.response.headers.get("Location") if self.response is not None else None
+
+
 class Conflict(APIError):
     """409 — e.g. a topology generation lock is held elsewhere."""
+
+
+class GenerationRequired(Conflict):
+    """409 ``generation-required`` — the file is not cached and must be generated first.
+
+    What the WP2 server answers for an uncached topology file: it does not generate on
+    a download yet. Once the server runs generation as a job (WP3) the same download
+    answers ``202`` instead, which :meth:`Files.download` already waits through, and
+    this exception stops occurring. ``.name`` is the file asked for."""
+
+    @property
+    def name(self) -> Optional[str]:
+        return (self.problem.model_extra or {}).get("name")
 
 
 class DuplicateMolecule(Conflict):
@@ -316,9 +351,34 @@ _BY_SLUG: Dict[str, Type[APIError]] = {
     "schema-missing": ServiceUnavailable,
     "database-unavailable": ServiceUnavailable,
     "audit-unavailable": ServiceUnavailable,
+    # Emitted by the WP2 read surface, 2026-09-23.
+    "validation": ValidationError,
+    "invalid-cursor": ValidationError,
+    "invalid-filter": ValidationError,
+    "invalid-limit": ValidationError,
+    "invalid-motif-key": ValidationError,
+    "file-restricted": PermissionDenied,
+    "force-regen-forbidden": PermissionDenied,
+    "file-name-unknown": NotFound,
+    "forcefield-not-found": NotFound,
+    "ifp-version-not-found": NotFound,
+    "archetype-not-found": NotFound,
+    "build-not-found": NotFound,
+    "motif-not-found": NotFound,
+    "statistic-not-found": NotFound,
+    "structure-not-available": NotFound,
+    "tautomer-group-not-found": NotFound,
+    "user-not-found": NotFound,
+    "molecule-moved": MoleculeMoved,
+    "generation-required": GenerationRequired,
+    "structure-unreadable": ChemistryRejected,
+    "archetypes-unavailable": ServiceUnavailable,
+    "graph-keys-not-installed": ServiceUnavailable,
+    "library-not-installed": ServiceUnavailable,
 }
 
 _BY_STATUS: Dict[int, Type[APIError]] = {
+    301: MoleculeMoved,
     400: ValidationError,
     401: AuthenticationError,
     403: PermissionDenied,

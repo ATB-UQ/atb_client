@@ -9,6 +9,7 @@ from atb_client import (
     ChemistryRejected,
     Conflict,
     DuplicateMolecule,
+    GenerationRequired,
     MoleculeNotFound,
     NotFound,
     PayloadTooLarge,
@@ -40,6 +41,15 @@ from .conftest import PROBLEM_HEADERS, molecule, problem
         ("rate-limited", 429, RateLimited),
         ("internal-error", 500, ServerError),
         ("service-unavailable", 503, ServiceUnavailable),
+        # what the WP2 server emits
+        ("validation", 400, ValidationError),
+        ("invalid-cursor", 400, ValidationError),
+        ("file-restricted", 403, PermissionDenied),
+        ("forcefield-not-found", 404, NotFound),
+        ("file-name-unknown", 404, NotFound),
+        ("generation-required", 409, GenerationRequired),
+        ("structure-unreadable", 422, ChemistryRejected),
+        ("library-not-installed", 503, ServiceUnavailable),
     ],
 )
 def test_slug_maps_to_exception(api, client, slug, status_code, exc):
@@ -83,6 +93,24 @@ def test_status_fallback(api, client, status_code, exc):
     with pytest.raises(exc) as info:
         client.jobs.get("j")
     assert type(info.value) is exc
+
+
+def test_server_validation_problem_exposes_field_errors(api, client):
+    errors = [{"loc": ["query", "limit"], "msg": "not an integer", "type": "int_parsing"}]
+    body = problem("validation", 400, errors=errors)
+    api.get("/jobs/j").respond(400, json=body, headers=PROBLEM_HEADERS)
+    with pytest.raises(ValidationError) as info:
+        client.jobs.get("j")
+    assert info.value.errors == errors
+
+
+def test_generation_required_names_the_file(api, client):
+    body = problem("generation-required", 409, name="itp_aa")
+    api.get("/molecules/21/files/itp_aa").respond(409, json=body, headers=PROBLEM_HEADERS)
+    with pytest.raises(GenerationRequired) as info:
+        client.files.download(21, "itp_aa")
+    assert info.value.name == "itp_aa"
+    assert isinstance(info.value, Conflict)
 
 
 def test_fastapi_default_422_is_validation(api, client):
