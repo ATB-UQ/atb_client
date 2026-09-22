@@ -38,7 +38,7 @@ def test_wait_returns_on_success(api, client, clock, final):
     done = mol.wait(timeout=3600)
     assert done.status.stage == final
     assert polls.call_count == 4
-    # 15 s → ×1.5 each round
+    # 15 s, then x1.5 each round
     assert clock.sleeps == [15.0, 22.5, 33.75]
 
 
@@ -74,7 +74,11 @@ def test_status_is_a_model(api, client):
     st = client.molecules.status(7)
     assert isinstance(st, MoleculeStatus)
     assert (st.stage, st.terminal, st.eta_class, st.client_reference) == (
-        "qm1", False, "hours", "LIG-042")
+        "qm1",
+        False,
+        "hours",
+        "LIG-042",
+    )
 
 
 # ------------------------------------------------------------------ search
@@ -83,8 +87,9 @@ def test_status_is_a_model(api, client):
 def test_search_page_and_all(api, client):
     route = api.get("/molecules")
     route.side_effect = [
-        httpx.Response(200, json={"items": [molecule(1), molecule(2)], "next_cursor": "c2",
-                                  "total": 5}),
+        httpx.Response(
+            200, json={"items": [molecule(1), molecule(2)], "next_cursor": "c2", "total": 5}
+        ),
         httpx.Response(200, json={"items": [molecule(3), molecule(4)], "next_cursor": "c3"}),
         httpx.Response(200, json={"items": [molecule(5)], "next_cursor": None}),
     ]
@@ -109,10 +114,21 @@ def test_search_encodes_lists_and_bools(api, client):
 
 def test_changes(api, client):
     route = api.get("/molecules/changes").respond(
-        200, json={"items": [{"molid": 21, "topology_hash": "h2", "stage": "finished",
-                              "changed_at": "2026-09-23T01:02:03Z"}], "next_cursor": "k"})
+        200,
+        json={
+            "items": [
+                {
+                    "molid": 21,
+                    "topology_hash": "h2",
+                    "stage": "finished",
+                    "changed_at": "2026-09-23T01:02:03Z",
+                }
+            ],
+            "next_cursor": "k",
+        },
+    )
     page = client.molecules.changes(since="abc")
-    change = list(page)[0]
+    change = next(iter(page))
     assert isinstance(change, Change) and change.topology_hash == "h2"
     assert page.next_cursor == "k"
     assert route.calls.last.request.url.params["since"] == "abc"
@@ -123,38 +139,64 @@ def test_changes(api, client):
 
 def test_submit_201(api, client):
     route = api.post("/molecules").respond(201, json=molecule(3001, status=status("queued")))
-    mol = client.molecules.submit("ATOM", format="pdb", netcharge=0, public=True,
-                                  client_reference="LIG-042")
+    mol = client.molecules.submit(
+        "ATOM", format="pdb", netcharge=0, public=True, client_reference="LIG-042"
+    )
     assert mol.molid == 3001
     body = json.loads(route.calls.last.request.content)
-    assert body == {"structure": "ATOM", "format": "pdb", "netcharge": 0, "public": True,
-                    "client_reference": "LIG-042"}
+    assert body == {
+        "structure": "ATOM",
+        "format": "pdb",
+        "netcharge": 0,
+        "public": True,
+        "client_reference": "LIG-042",
+    }
     assert route.calls.last.request.url.params["wait"] == "120"
 
 
 def test_submit_batch(api, client):
-    api.post("/molecules:batch").respond(200, json=[
-        {"index": 0, "client_reference": "A", "molid": 10},
-        {"index": 1, "client_reference": "B", "problem": {
-            "type": "https://atb.uq.edu.au/api/v1/errors/duplicate-molecule", "status": 409,
-            "molid": 11}},
-        {"index": 2, "client_reference": "C", "problem": {
-            "type": "https://atb.uq.edu.au/api/v1/errors/chemistry-rejected", "status": 422}},
-    ])
-    batch = client.molecules.submit_batch(sdf="...$$$$", netcharge_field="charge",
-                                          reference_field="_Name", public=False)
+    api.post("/molecules:batch").respond(
+        200,
+        json=[
+            {"index": 0, "client_reference": "A", "molid": 10},
+            {
+                "index": 1,
+                "client_reference": "B",
+                "problem": {
+                    "type": "https://atb.uq.edu.au/api/v1/errors/duplicate-molecule",
+                    "status": 409,
+                    "molid": 11,
+                },
+            },
+            {
+                "index": 2,
+                "client_reference": "C",
+                "problem": {
+                    "type": "https://atb.uq.edu.au/api/v1/errors/chemistry-rejected",
+                    "status": 422,
+                },
+            },
+        ],
+    )
+    batch = client.molecules.submit_batch(
+        sdf="...$$$$", netcharge_field="charge", reference_field="_Name", public=False
+    )
     assert batch.molids == [10, 11]
     assert [i.client_reference for i in batch.failed] == ["C"]
 
 
 def test_wait_all_yields_as_each_ends(api, client, clock):
     s1 = api.get("/molecules/1/status")
-    s1.side_effect = [httpx.Response(200, json=status("qm1")),
-                      httpx.Response(200, json=status("finished"))]
+    s1.side_effect = [
+        httpx.Response(200, json=status("qm1")),
+        httpx.Response(200, json=status("finished")),
+    ]
     api.get("/molecules/2/status").respond(200, json=status("capped"))
     s3 = api.get("/molecules/3/status")
-    s3.side_effect = [httpx.Response(200, json=status("qm0")),
-                      httpx.Response(200, json=status("failed", error="SCF"))]
+    s3.side_effect = [
+        httpx.Response(200, json=status("qm0")),
+        httpx.Response(200, json=status("failed", error="SCF")),
+    ]
     seen = [(m, s.stage) for m, s in client.molecules.wait_all([1, 2, 3])]
     assert seen == [(2, "capped"), (1, "finished"), (3, "failed")]
     assert clock.sleeps == [15.0]

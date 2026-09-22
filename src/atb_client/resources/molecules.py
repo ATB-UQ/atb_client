@@ -182,7 +182,9 @@ class Molecules(Resource):
             interval = min(max_interval, interval * _ops.MOLECULE_POLL_FACTOR)
 
     @operation
-    def update(self, molid: int, *, public: Optional[bool] = None, user_label: Optional[str] = None):
+    def update(
+        self, molid: int, *, public: Optional[bool] = None, user_label: Optional[str] = None
+    ):
         """``PATCH /molecules/{molid}`` (owner): make public (one-way) or label it."""
         body = {k: v for k, v in (("public", public), ("user_label", user_label)) if v is not None}
         response = yield from request(

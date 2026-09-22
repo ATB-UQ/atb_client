@@ -51,8 +51,14 @@ EXIT_RATE_LIMITED = 3
 EXIT_RUNNING = 4
 EXIT_FAILED = 5
 
-_FORMAT_BY_SUFFIX = {".pdb": "pdb", ".sdf": "sdf", ".mol": "sdf", ".mol2": "mol2",
-                     ".smi": "smiles", ".smiles": "smiles"}
+_FORMAT_BY_SUFFIX = {
+    ".pdb": "pdb",
+    ".sdf": "sdf",
+    ".mol": "sdf",
+    ".mol2": "mol2",
+    ".smi": "smiles",
+    ".smiles": "smiles",
+}
 
 
 class UsageError(Exception):
@@ -254,8 +260,10 @@ def cmd_keys_create(atb: ATBClient, args: argparse.Namespace) -> int:
     key = atb.me.keys.create(name=args.name, scopes=scopes, expires=args.expires)
     _emit(args, key)
     if key.key:
-        print("The key is shown once. Store it now, e.g. in ~/.config/atb/config.toml.",
-              file=sys.stderr)
+        print(
+            "The key is shown once. Store it now, e.g. in ~/.config/atb/config.toml.",
+            file=sys.stderr,
+        )
     return EXIT_OK
 
 
@@ -290,10 +298,12 @@ def _common(suppress: bool) -> argparse.ArgumentParser:
     defaults are suppressed so they do not overwrite a value given before it."""
     kw: dict = {"default": argparse.SUPPRESS} if suppress else {}
     common = argparse.ArgumentParser(add_help=False)
-    common.add_argument("--profile", help="config-file profile (default: ATB_PROFILE or "
-                        "'default')", **kw)
-    common.add_argument("--base-url", help="API base URL (default: ATB_API_URL or the "
-                        "profile)", **kw)
+    common.add_argument(
+        "--profile", help="config-file profile (default: ATB_PROFILE or 'default')", **kw
+    )
+    common.add_argument(
+        "--base-url", help="API base URL (default: ATB_API_URL or the profile)", **kw
+    )
     common.add_argument("--table", action="store_true", help="human-readable output", **kw)
     return common
 
@@ -336,8 +346,11 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--max-qm-level", type=int)
     p.add_argument("--moltype")
     p.add_argument("--timeout", type=float, default=600.0, help="for the submission itself")
-    p.add_argument("--wait", action="store_true",
-                   help="block until the molecule is done (interactive use; not the HPC idiom)")
+    p.add_argument(
+        "--wait",
+        action="store_true",
+        help="block until the molecule is done (interactive use; not the HPC idiom)",
+    )
     p.add_argument("--wait-timeout", type=float, default=None)
 
     p = add("submit-batch", cmd_submit_batch, "submit up to 100 structures from an SDF")
@@ -429,15 +442,18 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         _emit_error("usage", str(exc))
         return EXIT_USAGE
     except RateLimited as exc:
-        _emit_error("rate-limited", str(exc), retry_after=exc.retry_after,
-                    problem=exc.problem)
+        _emit_error("rate-limited", str(exc), retry_after=exc.retry_after, problem=exc.problem)
         return EXIT_RATE_LIMITED
     except Timeout as exc:
         _emit_error("timeout", str(exc), job=exc.job, status=exc.status, pending=exc.pending)
         return EXIT_RUNNING
     except (MoleculeFailed, MoleculeRejected) as exc:
-        _emit_error("failed" if isinstance(exc, MoleculeFailed) else "rejected", str(exc),
-                    molid=exc.molid, status=exc.status)
+        _emit_error(
+            "failed" if isinstance(exc, MoleculeFailed) else "rejected",
+            str(exc),
+            molid=exc.molid,
+            status=exc.status,
+        )
         return EXIT_FAILED
     except JobFailed as exc:
         _emit_error("job-failed", str(exc), job=exc.job)
@@ -446,8 +462,9 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         _emit_error("rejected", str(exc), problem=exc.problem)
         return EXIT_FAILED
     except APIError as exc:
-        _emit_error(exc.slug or f"http-{exc.status}", str(exc), status=exc.status,
-                    problem=exc.problem)
+        _emit_error(
+            exc.slug or f"http-{exc.status}", str(exc), status=exc.status, problem=exc.problem
+        )
         return EXIT_ERROR
     except ATBError as exc:
         _emit_error(type(exc).__name__, str(exc))

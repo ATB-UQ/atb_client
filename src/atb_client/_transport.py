@@ -121,7 +121,12 @@ def request(
     while True:
         attempt += 1
         req = client._http.build_request(
-            method, f"{client.base_url}/{path.lstrip('/')}", params=cleaned, json=json, content=content, headers=headers
+            method,
+            f"{client.base_url}/{path.lstrip('/')}",
+            params=cleaned,
+            json=json,
+            content=content,
+            headers=headers,
         )
         effect = Send(req, stream_to=stream_to, default_name=default_name)
         try:

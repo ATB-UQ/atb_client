@@ -51,8 +51,9 @@ class Structures(Resource):
                 return value
             from ..models import Job
 
-            return _ops.bind(Job(state="done", kind="structure_search", result=value.json()),
-                             self._client)
+            return _ops.bind(
+                Job(state="done", kind="structure_search", result=value.json()), self._client
+            )
         result = value.json() if kind == "response" else value.result_
         return _matches(result)
 

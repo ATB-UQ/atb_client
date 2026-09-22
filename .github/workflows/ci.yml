@@ -1,0 +1,74 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "17 3 * * 1"  # weekly, so the contract check notices server changes
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: pip install ruff
+      - run: ruff check src tests
+      - run: ruff format --check src tests
+
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: pip install -e ".[test]"
+      - run: python -m pytest -q
+
+  test-min-deps:
+    # the declared floors, httpx 0.27 and pydantic 2.5, on the oldest interpreter
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.9"
+      - run: pip install -e ".[test]" "httpx==0.27.0" "pydantic==2.5.0" "respx==0.21.1"
+      - run: python -m pytest -q
+
+  contract:
+    # Regenerates the models from the deployed schema and fails on any difference from
+    # the checked-in src/atb_client/generated/models.py. Allowed to fail until the v1
+    # server publishes /api/v1/openapi.json and the generated models are first committed.
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: pip install "datamodel-code-generator[http]==0.26.5"
+      - name: Fetch the deployed schema
+        run: curl --fail --silent --show-error --location -o openapi.json https://atb.uq.edu.au/api/v1/openapi.json
+      - name: Regenerate models
+        run: scripts/generate_models.sh openapi.json generated_models.py
+      - name: Diff against the checked-in models
+        run: |
+          if [ ! -f src/atb_client/generated/models.py ]; then
+            echo "::error::src/atb_client/generated/models.py is not committed yet"
+            exit 1
+          fi
+          # the header names the input file; compare the models, not the provenance line
+          diff -u <(sed '1,3d' src/atb_client/generated/models.py) <(sed '1,3d' generated_models.py)

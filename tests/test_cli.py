@@ -25,8 +25,9 @@ def out_json(capsys):
 
 
 @pytest.mark.parametrize(
-    "stage,code", [("finished", 0), ("capped", 0), ("queued", 4), ("qm1", 4), ("failed", 5),
-                   ("rejected", 5)])
+    "stage,code",
+    [("finished", 0), ("capped", 0), ("queued", 4), ("qm1", 4), ("failed", 5), ("rejected", 5)],
+)
 def test_status_exit_codes(env, capsys, stage, code):
     env.get("/molecules/21/status").respond(200, json=status(stage))
     assert main(["status", "21"]) == code
@@ -35,7 +36,8 @@ def test_status_exit_codes(env, capsys, stage, code):
 
 def test_rate_limited_is_3(env, capsys):
     env.get("/molecules/21/status").respond(
-        429, json=problem("rate-limited", 429), headers={"Retry-After": "86000"})
+        429, json=problem("rate-limited", 429), headers={"Retry-After": "86000"}
+    )
     assert main(["status", "21"]) == 3
     err = json.loads(capsys.readouterr().err)
     assert err["error"] == "rate-limited" and err["retry_after"] == 86000
@@ -112,7 +114,8 @@ def test_submit_chemistry_rejected_is_5(env, tmp_path):
 
 def test_download(env, capsys, tmp_path):
     env.get("/molecules/21/files/itp_aa").respond(
-        200, content=b"itp", headers={"Content-Disposition": 'attachment; filename="21.itp"'})
+        200, content=b"itp", headers={"Content-Disposition": 'attachment; filename="21.itp"'}
+    )
     env.get("/molecules/21/files/pdb_aa_opt").respond(200, content=b"pdb")
     assert main(["download", "21", "itp_aa", "pdb_aa_opt", "-o", str(tmp_path / "lig")]) == 0
     assert (tmp_path / "lig" / "21.itp").read_bytes() == b"itp"
@@ -141,11 +144,15 @@ def test_ifp_to_stdout(env, capsys):
 
 
 def test_keys_and_usage(env, capsys):
-    route = env.post("/me/keys").respond(201, json={"id": 7, "name": "nb", "scopes": ["read"],
-                                                    "key": "atb_new_secret"})
+    route = env.post("/me/keys").respond(
+        201, json={"id": 7, "name": "nb", "scopes": ["read"], "key": "atb_new_secret"}
+    )
     assert main(["keys", "create", "--name", "nb", "--scopes", "read", "--expires", "90d"]) == 0
     assert json.loads(route.calls.last.request.content) == {
-        "name": "nb", "scopes": ["read"], "expires": "90d"}
+        "name": "nb",
+        "scopes": ["read"],
+        "expires": "90d",
+    }
     assert out_json(capsys)["key"] == "atb_new_secret"
     env.get("/me/keys").respond(200, json={"items": [{"id": 7, "scopes": ["read"]}]})
     assert main(["keys", "list"]) == 0
@@ -161,8 +168,13 @@ def test_keys_and_usage(env, capsys):
 def _run_cli(*args, env_extra=None):
     env = {k: v for k, v in os.environ.items() if not k.startswith("ATB_")}
     env.update(env_extra or {})
-    return subprocess.run([sys.executable, "-m", "atb_client.cli", *args],
-                          capture_output=True, text=True, env=env, timeout=60)
+    return subprocess.run(
+        [sys.executable, "-m", "atb_client.cli", *args],
+        capture_output=True,
+        text=True,
+        env=env,
+        timeout=60,
+    )
 
 
 def test_subprocess_version_and_usage(tmp_path):
@@ -179,8 +191,14 @@ def test_subprocess_no_key(tmp_path):
 
 
 def test_subprocess_unreachable_is_1(tmp_path):
-    proc = _run_cli("get", "21", env_extra={
-        "ATB_CONFIG": str(tmp_path / "none.toml"), "ATB_API_KEY": KEY,
-        "ATB_API_URL": "http://127.0.0.1:9/api/v1"})
+    proc = _run_cli(
+        "get",
+        "21",
+        env_extra={
+            "ATB_CONFIG": str(tmp_path / "none.toml"),
+            "ATB_API_KEY": KEY,
+            "ATB_API_URL": "http://127.0.0.1:9/api/v1",
+        },
+    )
     assert proc.returncode == 1
     assert json.loads(proc.stderr)["error"] == "NetworkError"

@@ -18,7 +18,9 @@ class Jobs(Resource):
     @operation
     def list(self, *, state: Optional[str] = None, limit: Optional[int] = None):
         """``GET /jobs?state=`` → ``Page[Job]``."""
-        return (yield from _ops.page_of(self._client, Job, "jobs", {"state": state, "limit": limit}))
+        return (
+            yield from _ops.page_of(self._client, Job, "jobs", {"state": state, "limit": limit})
+        )
 
     @operation
     def cancel(self, job_id: str):

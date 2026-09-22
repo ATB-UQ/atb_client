@@ -67,7 +67,9 @@ class Deadline:
 
 
 def get_molecule(client: Any, molid: int) -> Op:
-    response = yield from request(client, "GET", f"molecules/{int(molid)}", not_found=MoleculeNotFound)
+    response = yield from request(
+        client, "GET", f"molecules/{int(molid)}", not_found=MoleculeNotFound
+    )
     return bind(Molecule.model_validate(response.json()), client)
 
 

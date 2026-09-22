@@ -108,7 +108,8 @@ def test_molecule_404_is_molecule_not_found(api, client):
 
 def test_duplicate_molecule_lazy_fetch(api, client):
     api.post("/molecules").respond(
-        409, json=problem("duplicate-molecule", 409, molid=21, compound_id=15),
+        409,
+        json=problem("duplicate-molecule", 409, molid=21, compound_id=15),
         headers=PROBLEM_HEADERS,
     )
     get = api.get("/molecules/21").respond(200, json=molecule())
@@ -124,9 +125,7 @@ def test_duplicate_molecule_lazy_fetch(api, client):
 
 
 def test_http_date_retry_after(api, client):
-    api.get("/jobs/j").respond(
-        503, headers={"Retry-After": "Wed, 21 Oct 2099 07:28:00 GMT"}
-    )
+    api.get("/jobs/j").respond(503, headers={"Retry-After": "Wed, 21 Oct 2099 07:28:00 GMT"})
     with pytest.raises(ServiceUnavailable) as info:
         client.jobs.get("j")
     assert info.value.retry_after > 60

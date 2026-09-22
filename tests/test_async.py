@@ -86,7 +86,9 @@ def test_async_duplicate_molecule_is_awaitable(api):
 def test_async_wait_all(api, clock):
     api.get("/molecules/1/status").respond(200, json=status("finished"))
     api.get("/molecules/2/status").side_effect = [
-        httpx.Response(200, json=status("qm0")), httpx.Response(200, json=status("rejected"))]
+        httpx.Response(200, json=status("qm0")),
+        httpx.Response(200, json=status("rejected")),
+    ]
 
     async def main():
         async with AsyncATBClient(api_key=KEY, base_url=BASE) as atb:
@@ -106,8 +108,9 @@ def test_async_download(api, tmp_path):
 
 
 def test_async_rate_limited(api):
-    api.get("/me/usage").respond(429, json=problem("rate-limited", 429),
-                                 headers={"Retry-After": "3600"})
+    api.get("/me/usage").respond(
+        429, json=problem("rate-limited", 429), headers={"Retry-After": "3600"}
+    )
 
     async def main():
         async with AsyncATBClient(api_key=KEY, base_url=BASE) as atb:
@@ -124,6 +127,15 @@ def test_same_surface():
     from atb_client import ATBClient
 
     sync, aio = ATBClient(api_key=KEY, base_url=BASE), AsyncATBClient(api_key=KEY, base_url=BASE)
-    for name in ("molecules", "files", "bundles", "structures", "forcefields", "jobs", "me",
-                 "admin", "pipeline"):
+    for name in (
+        "molecules",
+        "files",
+        "bundles",
+        "structures",
+        "forcefields",
+        "jobs",
+        "me",
+        "admin",
+        "pipeline",
+    ):
         assert type(getattr(sync, name)) is type(getattr(aio, name))

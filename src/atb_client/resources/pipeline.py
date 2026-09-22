@@ -26,23 +26,34 @@ class PipelineQM(Resource):
     def claims(self, *, runner_id: str, changed_since: Optional[str] = None):
         """``GET /pipeline/qm/claims?runner_id=&changed_since=`` — which of my running
         molecules changed."""
-        return (yield from _ops.json_call(
-            self._client, "GET", "pipeline/qm/claims",
-            params={"runner_id": runner_id, "changed_since": changed_since}))
+        return (
+            yield from _ops.json_call(
+                self._client,
+                "GET",
+                "pipeline/qm/claims",
+                params={"runner_id": runner_id, "changed_since": changed_since},
+            )
+        )
 
     @operation
     def release(self, molid: int, *, reason: Optional[str] = None):
         """``DELETE /pipeline/qm/claims/{molid}``."""
-        return (yield from _ops.json_call(
-            self._client, "DELETE", f"pipeline/qm/claims/{int(molid)}",
-            params={"reason": reason}))
+        return (
+            yield from _ops.json_call(
+                self._client,
+                "DELETE",
+                f"pipeline/qm/claims/{int(molid)}",
+                params={"reason": reason},
+            )
+        )
 
     @operation
     def sync(self, *, runner_id: str, molids: Any = None, **extra: Any):
         """``POST /pipeline/qm/claims:sync`` — reconcile a runner's view with the ledger."""
         body = _drop_none(runner_id=runner_id, molids=list(molids) if molids else None, **extra)
-        return (yield from _ops.json_call(self._client, "POST", "pipeline/qm/claims:sync",
-                                          json=body))
+        return (
+            yield from _ops.json_call(self._client, "POST", "pipeline/qm/claims:sync", json=body)
+        )
 
     @operation
     def results(
@@ -56,54 +67,78 @@ class PipelineQM(Resource):
         geometry: Optional[str] = None,
     ):
         """``POST /pipeline/qm/results`` — store a finished calculation."""
-        body = _drop_none(molid=molid, level=level, method=method, qm_data=qm_data, log=log,
-                          geometry=geometry)
+        body = _drop_none(
+            molid=molid, level=level, method=method, qm_data=qm_data, log=log, geometry=geometry
+        )
         return (yield from _ops.json_call(self._client, "POST", "pipeline/qm/results", json=body))
 
     @operation
-    def failures(self, *, molid: int, level: int, status: str, reason: Optional[str] = None,
-                 method: Optional[str] = None):
+    def failures(
+        self,
+        *,
+        molid: int,
+        level: int,
+        status: str,
+        reason: Optional[str] = None,
+        method: Optional[str] = None,
+    ):
         """``POST /pipeline/qm/failures`` — report a failed calculation."""
         body = _drop_none(molid=molid, level=level, status=status, reason=reason, method=method)
-        return (yield from _ops.json_call(self._client, "POST", "pipeline/qm/failures",
-                                          json=body))
+        return (yield from _ops.json_call(self._client, "POST", "pipeline/qm/failures", json=body))
 
 
 class PipelineMolecules(Resource):
     @operation
     def update(self, molid: int, **fields: Any):
         """``PATCH /pipeline/molecules/{molid}`` — ``cpu_time``, ``max_qm_level``, ``iupac``."""
-        return (yield from _ops.json_call(self._client, "PATCH",
-                                          f"pipeline/molecules/{int(molid)}", json=fields))
+        return (
+            yield from _ops.json_call(
+                self._client, "PATCH", f"pipeline/molecules/{int(molid)}", json=fields
+            )
+        )
 
     @operation
     def update_compound(self, molid: int, **fields: Any):
         """``PATCH /pipeline/molecules/{molid}/compound`` — the ``compounds/set`` field set."""
-        return (yield from _ops.json_call(self._client, "PATCH",
-                                          f"pipeline/molecules/{int(molid)}/compound",
-                                          json=fields))
+        return (
+            yield from _ops.json_call(
+                self._client, "PATCH", f"pipeline/molecules/{int(molid)}/compound", json=fields
+            )
+        )
 
     @operation
     def put_lgf(self, molid: int, lgf: str):
         """``PUT /pipeline/molecules/{molid}/lgf``."""
-        return (yield from _ops.json_call(self._client, "PUT",
-                                          f"pipeline/molecules/{int(molid)}/lgf",
-                                          content=lgf.encode("utf-8"),
-                                          headers={"Content-Type": "text/plain"}))
+        return (
+            yield from _ops.json_call(
+                self._client,
+                "PUT",
+                f"pipeline/molecules/{int(molid)}/lgf",
+                content=lgf.encode("utf-8"),
+                headers={"Content-Type": "text/plain"},
+            )
+        )
 
     @operation
     def put_validation(self, molid: int, kind: str, **payload: Any):
         """``PUT /pipeline/molecules/{molid}/validation/{kind}`` (rows + EMinVac files)."""
-        return (yield from _ops.json_call(self._client, "PUT",
-                                          f"pipeline/molecules/{int(molid)}/validation/{kind}",
-                                          json=payload))
+        return (
+            yield from _ops.json_call(
+                self._client,
+                "PUT",
+                f"pipeline/molecules/{int(molid)}/validation/{kind}",
+                json=payload,
+            )
+        )
 
     @operation
     def notify(self, molid: int, **payload: Any):
         """``POST /pipeline/molecules/{molid}/notify`` — the submitter email."""
-        return (yield from _ops.json_call(self._client, "POST",
-                                          f"pipeline/molecules/{int(molid)}/notify",
-                                          json=payload))
+        return (
+            yield from _ops.json_call(
+                self._client, "POST", f"pipeline/molecules/{int(molid)}/notify", json=payload
+            )
+        )
 
 
 class Pipeline(Resource):
@@ -115,5 +150,8 @@ class Pipeline(Resource):
     @operation
     def callback(self, molid: int, event: str):
         """``POST /pipeline/callbacks`` — fan an event out to stored ``callback_url``s."""
-        return (yield from _ops.json_call(self._client, "POST", "pipeline/callbacks",
-                                          json={"molid": molid, "event": event}))
+        return (
+            yield from _ops.json_call(
+                self._client, "POST", "pipeline/callbacks", json={"molid": molid, "event": event}
+            )
+        )

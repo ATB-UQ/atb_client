@@ -69,12 +69,15 @@ class Me(Resource):
         return (yield from _ops.page_of(self._client, Molecule, "me/molecules", {"limit": limit}))
 
     @operation
-    def request_quota(self, *, reason: str, daily_limit: Optional[int] = None,
-                      burst_per_min: Optional[int] = None):
+    def request_quota(
+        self, *, reason: str, daily_limit: Optional[int] = None, burst_per_min: Optional[int] = None
+    ):
         """``POST /me/quota-requests`` — ask an admin to raise this key's limits."""
         body = {"reason": reason, "daily_limit": daily_limit, "burst_per_min": burst_per_min}
         response = yield from request(
-            self._client, "POST", "me/quota-requests",
+            self._client,
+            "POST",
+            "me/quota-requests",
             json={k: v for k, v in body.items() if v is not None},
         )
         return json_of(response)

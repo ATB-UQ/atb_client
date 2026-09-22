@@ -27,11 +27,22 @@ def test_construction_warns(api):
 
 @pytest.mark.parametrize(
     "atb_format,v1",
-    [("pdb_aa", "pdb_aa_opt"), ("pdb_ua", "pdb_ua_opt"), ("mtb_aa", "mtb_aa"),
-     ("mtb_ua", "mtb_ua"), ("itp_aa", "itp_aa"), ("itp_ua", "itp_ua"), ("lgf", "lgf"),
-     ("yml", "yml"), ("pdb_allatom_optimised", "pdb_aa_opt"),
-     ("pdb_uniatom_unoptimised", "pdb_ua_unopt"), ("itp_allatom", "itp_aa"),
-     ("mtb96_uniatom", "mtb96_ua"), ("graph.lgf", "lgf"), ("cif_ccd", "cif_ccd")],
+    [
+        ("pdb_aa", "pdb_aa_opt"),
+        ("pdb_ua", "pdb_ua_opt"),
+        ("mtb_aa", "mtb_aa"),
+        ("mtb_ua", "mtb_ua"),
+        ("itp_aa", "itp_aa"),
+        ("itp_ua", "itp_ua"),
+        ("lgf", "lgf"),
+        ("yml", "yml"),
+        ("pdb_allatom_optimised", "pdb_aa_opt"),
+        ("pdb_uniatom_unoptimised", "pdb_ua_unopt"),
+        ("itp_allatom", "itp_aa"),
+        ("mtb96_uniatom", "mtb96_ua"),
+        ("graph.lgf", "lgf"),
+        ("cif_ccd", "cif_ccd"),
+    ],
 )
 def test_format_table(atb_format, v1):
     assert v1_file_name(atb_format) == v1
@@ -52,8 +63,9 @@ def test_download_file_pdb_aa_hits_v1_path(api, legacy_api, tmp_path):
 
 def test_download_file_long_name_and_ff(api, legacy_api):
     route = api.get("/molecules/21/files/itp_aa").respond(200, content=b"itp")
-    legacy_api.Molecules.download_file(molid=21, file="itp_allatom", outputType="top",
-                                       ffVersion="54A7")
+    legacy_api.Molecules.download_file(
+        molid=21, file="itp_allatom", outputType="top", ffVersion="54A7"
+    )
     assert route.calls.last.request.url.params["ff"] == "54A7"
 
 
@@ -73,8 +85,9 @@ def test_readme_example(api, legacy_api, tmp_path, monkeypatch):
 
 def test_search_molids_and_partial(api, legacy_api):
     route = api.get("/molecules").respond(200, json={"items": [molecule(1), molecule(2)]})
-    assert legacy_api.Molecules.search(common_name="eth", match_partial=True,
-                                       return_type="molids") == [1, 2]
+    assert legacy_api.Molecules.search(
+        common_name="eth", match_partial=True, return_type="molids"
+    ) == [1, 2]
     assert dict(route.calls.last.request.url.params) == {"q": "eth"}
 
 
@@ -88,8 +101,9 @@ def test_molid_and_molids(api, legacy_api):
 
 def test_structure_search(api, legacy_api):
     api.post("/structures/search").respond(200, json={"items": [{"molid": 21, "rmsd": 0.0}]})
-    out = legacy_api.Molecules.structure_search(structure="ATOM", netcharge=0,
-                                                structure_format="pdb")
+    out = legacy_api.Molecules.structure_search(
+        structure="ATOM", netcharge=0, structure_format="pdb"
+    )
     assert out["matches"][0]["molid"] == 21
 
 

@@ -58,7 +58,9 @@ class _ClientBase:
         self.profile = config.profile
         self._key_source = config.source
         self._has_key = config.api_key is not None
-        self._retry = RetryPolicy(max_attempts=max(1, int(max_attempts)), max_retry_after=max_retry_after)
+        self._retry = RetryPolicy(
+            max_attempts=max(1, int(max_attempts)), max_retry_after=max_retry_after
+        )
         all_headers = {"User-Agent": USER_AGENT, "Accept": "application/json"}
         if config.api_key:
             all_headers["Authorization"] = f"Bearer {config.api_key}"
@@ -112,7 +114,11 @@ class ATBClient(_ClientBase):
         headers: Optional[dict] = None,
         http_client: Optional[httpx.Client] = None,
     ) -> None:
-        options = self._setup(api_key, base_url, timeout, profile, max_attempts, max_retry_after, headers)
+        options = self._setup(
+            api_key, base_url, timeout, profile, max_attempts, max_retry_after, headers
+        )
+        if http_client is not None:
+            http_client.headers.update(options["headers"])
         self._http = http_client or httpx.Client(**options)
         self._driver = SyncDriver(self._http)
         self._attach_resources()
@@ -148,7 +154,11 @@ class AsyncATBClient(_ClientBase):
         headers: Optional[dict] = None,
         http_client: Optional[httpx.AsyncClient] = None,
     ) -> None:
-        options = self._setup(api_key, base_url, timeout, profile, max_attempts, max_retry_after, headers)
+        options = self._setup(
+            api_key, base_url, timeout, profile, max_attempts, max_retry_after, headers
+        )
+        if http_client is not None:
+            http_client.headers.update(options["headers"])
         self._http = http_client or httpx.AsyncClient(**options)
         self._driver = AsyncDriver(self._http)
         self._attach_resources()

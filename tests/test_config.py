@@ -79,11 +79,16 @@ def test_client_uses_profile(config_file):
 def test_minimal_parser_matches_tomllib():
     """The 3.9/3.10 fallback reads the documented subset exactly as tomllib does."""
     parsed = _loads_minimal(CONFIG)
-    assert parsed == {"profiles": {
-        "default": {"api_key": "atb_default_key"},
-        "staging": {"api_key": "atb_staging_key",
-                    "base_url": "https://staging.example.org/api/v1", "timeout": 60},
-    }}
+    assert parsed == {
+        "profiles": {
+            "default": {"api_key": "atb_default_key"},
+            "staging": {
+                "api_key": "atb_staging_key",
+                "base_url": "https://staging.example.org/api/v1",
+                "timeout": 60,
+            },
+        }
+    }
     try:
         import tomllib
     except ImportError:  # pragma: no cover - 3.9/3.10

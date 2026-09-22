@@ -10,8 +10,11 @@ from .conftest import molecule
 
 
 def _accepted(job_id="01JOB"):
-    return httpx.Response(202, headers={"Location": f"/api/v1/jobs/{job_id}"},
-                          json={"id": job_id, "kind": "generate_topology", "state": "queued"})
+    return httpx.Response(
+        202,
+        headers={"Location": f"/api/v1/jobs/{job_id}"},
+        json={"id": job_id, "kind": "generate_topology", "state": "queued"},
+    )
 
 
 def test_download_202_dance_to_completion(api, client, clock, tmp_path):
@@ -21,8 +24,14 @@ def test_download_202_dance_to_completion(api, client, clock, tmp_path):
     jobs.side_effect = [
         httpx.Response(200, json={"id": "01JOB", "state": "running"}),
         httpx.Response(200, json={"id": "01JOB", "state": "running"}),
-        httpx.Response(200, json={"id": "01JOB", "state": "done",
-                                  "result": {"href": "/api/v1/molecules/21/files/itp_aa"}}),
+        httpx.Response(
+            200,
+            json={
+                "id": "01JOB",
+                "state": "done",
+                "result": {"href": "/api/v1/molecules/21/files/itp_aa"},
+            },
+        ),
     ]
     path = client.files.download(21, "itp_aa", tmp_path / "lig.itp", timeout=300)
     assert path == tmp_path / "lig.itp"
@@ -36,9 +45,13 @@ def test_job_poll_backoff_caps_at_30s(api, client, clock):
     api.get("/molecules/21/files/itp_aa").mock(return_value=_accepted())
     jobs = api.get("/jobs/01JOB")
     jobs.side_effect = [httpx.Response(200, json={"id": "01JOB", "state": "running"})] * 8 + [
-        httpx.Response(200, json={"id": "01JOB", "state": "done", "result": {}})]
+        httpx.Response(200, json={"id": "01JOB", "state": "done", "result": {}})
+    ]
     # the second GET (after the job) must succeed
-    api.get("/molecules/21/files/itp_aa").side_effect = [_accepted(), httpx.Response(200, content=b"x")]
+    api.get("/molecules/21/files/itp_aa").side_effect = [
+        _accepted(),
+        httpx.Response(200, content=b"x"),
+    ]
     assert client.files.download(21, "itp_aa", timeout=None) == b"x"
     assert clock.sleeps == [1.0, 2.0, 4.0, 8.0, 16.0, 30.0, 30.0, 30.0]
 
@@ -63,8 +76,9 @@ def test_location_only_202(api, client):
 
 def test_failed_job_raises_job_failed(api, client):
     api.get("/molecules/21/files/itp_aa").mock(return_value=_accepted())
-    api.get("/jobs/01JOB").respond(200, json={"id": "01JOB", "state": "failed",
-                                              "error": "generation crashed"})
+    api.get("/jobs/01JOB").respond(
+        200, json={"id": "01JOB", "state": "failed", "error": "generation crashed"}
+    )
     with pytest.raises(JobFailed) as info:
         client.files.download(21, "itp_aa")
     assert info.value.job.error == "generation crashed"
@@ -72,9 +86,19 @@ def test_failed_job_raises_job_failed(api, client):
 
 def test_failed_job_with_problem_maps_it(api, client):
     api.post("/molecules").mock(return_value=_accepted())
-    api.get("/jobs/01JOB").respond(200, json={"id": "01JOB", "state": "failed", "error": {
-        "type": "https://atb.uq.edu.au/api/v1/errors/duplicate-molecule", "status": 409,
-        "title": "duplicate", "molid": 21}})
+    api.get("/jobs/01JOB").respond(
+        200,
+        json={
+            "id": "01JOB",
+            "state": "failed",
+            "error": {
+                "type": "https://atb.uq.edu.au/api/v1/errors/duplicate-molecule",
+                "status": 409,
+                "title": "duplicate",
+                "molid": 21,
+            },
+        },
+    )
     api.get("/molecules/21").respond(200, json=molecule())
     with pytest.raises(DuplicateMolecule) as info:
         client.molecules.submit("ATOM", netcharge=0)
@@ -83,8 +107,9 @@ def test_failed_job_with_problem_maps_it(api, client):
 
 def test_slow_submission_resolves_via_job(api, client):
     api.post("/molecules").mock(return_value=_accepted())
-    api.get("/jobs/01JOB").respond(200, json={"id": "01JOB", "state": "done",
-                                              "result": {"molid": 3002}})
+    api.get("/jobs/01JOB").respond(
+        200, json={"id": "01JOB", "state": "done", "result": {"molid": 3002}}
+    )
     api.get("/molecules/3002").respond(200, json=molecule(3002))
     assert client.molecules.submit("ATOM", netcharge=0).molid == 3002
 
@@ -94,9 +119,14 @@ def test_structure_search_wait_false_returns_job(api, client, clock):
     jobs = api.get("/jobs/S1")
     jobs.side_effect = [
         httpx.Response(200, json={"id": "S1", "state": "running"}),
-        httpx.Response(200, json={"id": "S1", "state": "done",
-                                  "result": {"items": [{"molid": 21, "is_identical": True,
-                                                        "rmsd": 0.0}]}}),
+        httpx.Response(
+            200,
+            json={
+                "id": "S1",
+                "state": "done",
+                "result": {"items": [{"molid": 21, "is_identical": True, "rmsd": 0.0}]},
+            },
+        ),
     ]
     job = client.structures.search("ATOM", netcharge="*", wait=False)
     assert isinstance(job, Job) and job.id == "S1"
@@ -112,9 +142,15 @@ def test_structure_search_blocking(api, client):
 
 
 def test_chemistry_rejected_on_submit(api, client):
-    api.post("/molecules").respond(422, json={
-        "type": "https://atb.uq.edu.au/api/v1/errors/chemistry-rejected",
-        "title": "Infeasible", "status": 422, "reason": "odd electron count at charge 0"})
+    api.post("/molecules").respond(
+        422,
+        json={
+            "type": "https://atb.uq.edu.au/api/v1/errors/chemistry-rejected",
+            "title": "Infeasible",
+            "status": 422,
+            "reason": "odd electron count at charge 0",
+        },
+    )
     with pytest.raises(ChemistryRejected) as info:
         client.molecules.submit("ATOM", netcharge=0)
     assert info.value.reason == "odd electron count at charge 0"

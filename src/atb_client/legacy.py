@@ -57,8 +57,20 @@ ATB_FORMAT_TO_V1: Dict[str, str] = {
     "g96_uniatom_unoptimised": "g96_ua_unopt",
     "graph.lgf": "lgf",
 }
-for _fmt in ("mtb", "mtb96", "top", "itp", "cns_top", "cns_param", "lammps", "amber_prmtop",
-             "amber_crd", "pqr", "cif", "mol"):
+for _fmt in (
+    "mtb",
+    "mtb96",
+    "top",
+    "itp",
+    "cns_top",
+    "cns_param",
+    "lammps",
+    "amber_prmtop",
+    "amber_crd",
+    "pqr",
+    "cif",
+    "mol",
+):
     ATB_FORMAT_TO_V1[f"{_fmt}_allatom"] = f"{_fmt}_aa"
     ATB_FORMAT_TO_V1[f"{_fmt}_uniatom"] = f"{_fmt}_ua"
 
@@ -69,7 +81,7 @@ def v1_file_name(name: str) -> str:
     return ATB_FORMAT_TO_V1.get(name, name)
 
 
-class ATB_Mol:  # noqa: N801 - the legacy name
+class ATB_Mol:
     """A bag of a molecule's fields with ``.download_file()``, as ``atb_api`` returned."""
 
     def __init__(self, api: API, molecule_dict: Dict[str, Any]) -> None:

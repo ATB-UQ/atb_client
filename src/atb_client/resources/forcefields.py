@@ -21,11 +21,17 @@ class Forcefields(Resource):
         return list(_ops.items_of(json_of(response)))
 
     @operation
-    def ifp(self, ff: str, *, format: str = "gxx", path: Any = None, timeout: Optional[float] = 120):
+    def ifp(
+        self, ff: str, *, format: str = "gxx", path: Any = None, timeout: Optional[float] = 120
+    ):
         """``GET /forcefields/{ff}/ifp?format=gxx|g96`` → text, or the path written."""
         result = yield from _ops.download(
-            self._client, f"forcefields/{ff}/ifp", target=path, default_name=f"{ff}.ifp",
-            params={"format": format}, timeout=timeout,
+            self._client,
+            f"forcefields/{ff}/ifp",
+            target=path,
+            default_name=f"{ff}.ifp",
+            params={"format": format},
+            timeout=timeout,
         )
         return _text_or_path(result)
 
@@ -33,7 +39,10 @@ class Forcefields(Resource):
     def mtb(self, ff: str, *, path: Any = None, timeout: Optional[float] = 120):
         """``GET /forcefields/{ff}/mtb`` → text, or the path written."""
         result = yield from _ops.download(
-            self._client, f"forcefields/{ff}/mtb", target=path, default_name=f"{ff}.mtb",
+            self._client,
+            f"forcefields/{ff}/mtb",
+            target=path,
+            default_name=f"{ff}.mtb",
             timeout=timeout,
         )
         return _text_or_path(result)
@@ -42,7 +51,10 @@ class Forcefields(Resource):
     def lammps(self, ff: str, *, path: Any = None, timeout: Optional[float] = 120):
         """``GET /forcefields/{ff}/lammps`` → text, or the path written."""
         result = yield from _ops.download(
-            self._client, f"forcefields/{ff}/lammps", target=path, default_name=f"{ff}.lammps",
+            self._client,
+            f"forcefields/{ff}/lammps",
+            target=path,
+            default_name=f"{ff}.lammps",
             timeout=timeout,
         )
         return _text_or_path(result)

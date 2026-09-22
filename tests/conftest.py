@@ -6,8 +6,7 @@ from typing import List
 import pytest
 import respx
 
-from atb_client import ATBClient, AsyncATBClient
-from atb_client import _clock
+from atb_client import AsyncATBClient, ATBClient, _clock
 
 BASE = "https://atb.test/api/v1"
 KEY = "atb_abcd1234_" + "s" * 43
