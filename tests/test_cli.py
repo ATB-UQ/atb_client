@@ -128,6 +128,30 @@ def test_download_timeout_is_4(env, tmp_path):
     assert main(["download", "21", "itp_aa", "-o", str(tmp_path), "--timeout", "30"]) == 4
 
 
+def test_remap(env, capsys, tmp_path):
+    env.post("/molecules/21/remap").respond(
+        200, content=b"PK\x03\x04zip", headers={"Content-Type": "application/zip"}
+    )
+    structure = tmp_path / "query.pdb"
+    structure.write_text("ATOM")
+    out = tmp_path / "out.zip"
+    assert main(["remap", "21", str(structure), "-o", str(out)]) == 0
+    assert out.read_bytes() == b"PK\x03\x04zip"
+    assert out_json(capsys)["path"] == str(out)
+
+
+def test_remap_refused_is_5(env, tmp_path):
+    env.post("/molecules/21/remap").respond(
+        422,
+        json=problem(
+            "remap-refused", 422, molid=21, report={"mapping": {"status": "not_equivalent"}}
+        ),
+    )
+    structure = tmp_path / "query.pdb"
+    structure.write_text("ATOM")
+    assert main(["remap", "21", str(structure), "-o", str(tmp_path)]) == 5
+
+
 def test_search_all(env, capsys):
     env.get("/molecules").side_effect = [
         httpx.Response(200, json={"items": [molecule(1)], "next_cursor": "n"}),

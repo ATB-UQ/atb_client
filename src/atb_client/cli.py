@@ -41,6 +41,7 @@ from .exceptions import (
     MoleculeFailed,
     MoleculeRejected,
     RateLimited,
+    RemapRefused,
     Timeout,
 )
 from .resources.me import days_of
@@ -205,6 +206,27 @@ def cmd_download(atb: ATBClient, args: argparse.Namespace) -> int:
         )
         written.append({"name": name, "path": str(path)})
     _emit(args, written)
+    return EXIT_OK
+
+
+def cmd_remap(atb: ATBClient, args: argparse.Namespace) -> int:
+    fmt = args.format or _FORMAT_BY_SUFFIX.get(Path(args.file).suffix.lower())
+    out = Path(args.output)
+    if out.is_dir() or not out.suffix:
+        out = out / f"{args.molid}_remapped.zip"
+    path = atb.molecules.remap(
+        args.molid,
+        _read(args.file),
+        format=fmt,
+        mode=args.mode,
+        names=args.names,
+        coords=args.coords,
+        outputs=args.outputs,
+        united=args.united,
+        path=out,
+        timeout=args.timeout,
+    )
+    _emit(args, {"path": str(path)})
     return EXIT_OK
 
 
@@ -376,6 +398,23 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--ff", help="force field, e.g. 54A7")
     p.add_argument("--timeout", type=float, default=300.0)
 
+    p = add("remap", cmd_remap, "this molecule's outputs in your structure's atom order")
+    p.add_argument("molid", type=int)
+    p.add_argument("file", help="structure file, or - for stdin")
+    p.add_argument("--format", choices=["pdb", "mol", "sdf", "mdl", "molblock"])
+    p.add_argument("--mode", choices=["all_atom", "heavy_atom"], help="default: detected")
+    p.add_argument("--names", choices=["query", "reference"], default="query")
+    p.add_argument("--coords", choices=["query", "reference"], default="query")
+    p.add_argument(
+        "--outputs",
+        nargs="+",
+        choices=["g96", "itp", "mtb", "param_cns", "pdb", "pqr", "top_cns"],
+        help="default: pdb itp mtb",
+    )
+    p.add_argument("--united", action="store_true", help="united-atom outputs")
+    p.add_argument("-o", "--output", default=".", help="zip path, or a directory (default: .)")
+    p.add_argument("--timeout", type=float, default=300.0)
+
     p = add("bundle", cmd_bundle, "download files of many molecules as one bundle")
     p.add_argument("names", nargs="+")
     p.add_argument("--molids", help="comma-separated molids")
@@ -462,6 +501,9 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         return EXIT_FAILED
     except JobFailed as exc:
         _emit_error("job-failed", str(exc), job=exc.job)
+        return EXIT_FAILED
+    except RemapRefused as exc:
+        _emit_error("remap-refused", str(exc), problem=exc.problem, report=exc.report)
         return EXIT_FAILED
     except ChemistryRejected as exc:
         _emit_error("rejected", str(exc), problem=exc.problem)
