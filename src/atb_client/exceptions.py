@@ -304,6 +304,19 @@ _BY_SLUG: Dict[str, Type[APIError]] = {
     "internal-error": ServerError,
     "service-unavailable": ServiceUnavailable,
     "structure-service-unavailable": ServiceUnavailable,
+    # Emitted by the server's WP0/WP1 code (website/website/api_v1), 2026-09-23.
+    "bad-request": ValidationError,
+    "method-not-allowed": APIError,
+    "account-expired": AuthenticationError,
+    "account-inactive": AuthenticationError,
+    "insufficient-scope": PermissionDenied,
+    "key-escalation": PermissionDenied,
+    "user-key-required": PermissionDenied,
+    "key-not-found": NotFound,
+    "key-limit-reached": Conflict,
+    "schema-missing": ServiceUnavailable,
+    "database-unavailable": ServiceUnavailable,
+    "audit-unavailable": ServiceUnavailable,
 }
 
 _BY_STATUS: Dict[int, Type[APIError]] = {
