@@ -100,7 +100,9 @@ def test_molid_and_molids(api, legacy_api):
 
 
 def test_structure_search(api, legacy_api):
-    api.post("/structures/search").respond(200, json={"items": [{"molid": 21, "rmsd": 0.0}]})
+    api.post("/structures/search").respond(
+        200, json={"matches": [{"molid": 21, "rmsd": 0.0, "compared": True}]}
+    )
     out = legacy_api.Molecules.structure_search(
         structure="ATOM", netcharge=0, structure_format="pdb"
     )

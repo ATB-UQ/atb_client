@@ -175,14 +175,14 @@ class Molecules(_Namespace):
         for required in ("structure", "netcharge", "structure_format"):
             if required not in kwargs:
                 raise ValueError(f"structure_search needs {required}=")
-        matches = self._v1.structures.search(
+        result = self._v1.structures.search(
             kwargs["structure"],
             format=kwargs["structure_format"],
             netcharge=kwargs["netcharge"],
             limit=kwargs.get("limit"),
             timeout=self.api.timeout_seconds,
         )
-        return {"matches": [m.model_dump(mode="json") for m in matches]}
+        return {"matches": [m.model_dump(mode="json") for m in result.matches]}
 
     def submit(self, request: str = "POST", **kwargs: Any) -> Dict[str, Any]:
         """``POST /molecules`` with ``pdb=`` or ``smiles=``; returns the molecule's fields.

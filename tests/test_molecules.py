@@ -5,10 +5,10 @@ import json
 import httpx
 import pytest
 
-from atb_client import MoleculeFailed, MoleculeRejected, Timeout
+from atb_client import MoleculeFailed, MoleculeRejected, RemapRefused, Timeout
 from atb_client.models import Change, Molecule, MoleculeStatus, Page
 
-from .conftest import molecule, status
+from .conftest import molecule, problem, status
 
 
 def test_get_returns_bound_model(api, client):
@@ -210,3 +210,54 @@ def test_wait_all_timeout_lists_pending(api, client):
     with pytest.raises(Timeout) as info:
         list(it)
     assert info.value.pending == [2]
+
+
+# ------------------------------------------------------------------ remap
+
+
+def test_remap_bytes(api, client):
+    route = api.post("/molecules/21/remap").respond(
+        200, content=b"PK\x03\x04zip", headers={"Content-Type": "application/zip"}
+    )
+    out = client.molecules.remap(21, "ATOM", format="pdb")
+    assert out == b"PK\x03\x04zip"
+    body = json.loads(route.calls.last.request.content)
+    assert body == {
+        "structure": "ATOM",
+        "names": "query",
+        "coords": "query",
+        "united": False,
+        "format": "pdb",
+    }
+
+
+def test_remap_to_path(api, client, tmp_path):
+    api.post("/molecules/21/remap").respond(
+        200, content=b"PK\x03\x04zip", headers={"Content-Type": "application/zip"}
+    )
+    out = tmp_path / "remap.zip"
+    path = client.molecules.remap(21, "ATOM", path=out)
+    assert path == out
+    assert out.read_bytes() == b"PK\x03\x04zip"
+
+
+def test_remap_follows_job(api, client, clock):
+    api.post("/molecules/21/remap").respond(202, headers={"Location": "/api/v1/jobs/J"})
+    api.get("/jobs/J").respond(200, json={"id": "J", "state": "done", "kind": "remap"})
+    api.get("/jobs/J/result").respond(
+        200, content=b"PK\x03\x04zip", headers={"Content-Type": "application/zip"}
+    )
+    out = client.molecules.remap(21, "ATOM")
+    assert out == b"PK\x03\x04zip"
+
+
+def test_remap_refused_carries_report(api, client):
+    api.post("/molecules/21/remap").respond(
+        422,
+        json=problem(
+            "remap-refused", 422, molid=21, report={"mapping": {"status": "not_equivalent"}}
+        ),
+    )
+    with pytest.raises(RemapRefused) as info:
+        client.molecules.remap(21, "ATOM")
+    assert info.value.report == {"mapping": {"status": "not_equivalent"}}

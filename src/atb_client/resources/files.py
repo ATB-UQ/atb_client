@@ -8,9 +8,13 @@ Restricted files (the QM logs, ``qm_data``, ``atb_log``) need a partner or admin
 account or a service key; for anyone else they are left out of ``list()`` and
 ``download()`` raises :class:`PermissionDenied` (``file-restricted``).
 
-Until the server generates on demand (WP3), downloading a topology file that is not
-cached raises :class:`GenerationRequired` (409); afterwards the same call waits for
-the generation job (the server's ``202``) up to ``timeout``.
+Downloading a topology file that is not cached generates it on demand (WP3): the
+server answers ``202`` and the same call waits for that job up to ``timeout``.
+:class:`GenerationRequired` is kept for compatibility but the server no longer
+raises it for files — it is superseded by the ``202``/job dance, plus
+``generation-locked`` (:class:`Conflict`) while another request is already
+generating the same topology, ``topology-not-ready`` (:class:`Conflict`) and
+``topology-generation-failed`` (:class:`ChemistryRejected`).
 """
 
 from __future__ import annotations
@@ -83,10 +87,9 @@ class Files(Resource):
         server's file name) the body is streamed to disk atomically and the
         :class:`~pathlib.Path` returned; without it the bytes are returned. A file
         that must be generated first is waited for (the 202/job dance) up to
-        ``timeout`` seconds, then :class:`Timeout`; the WP2 server instead answers
-        :class:`GenerationRequired`. A pinned ``hash`` that is no longer stored raises
-        :class:`TopologyVersionGone`. A merged duplicate molid is followed to its
-        canonical molecule.
+        ``timeout`` seconds, then :class:`Timeout`. A pinned ``hash`` that is no
+        longer stored raises :class:`TopologyVersionGone`. A merged duplicate molid
+        is followed to its canonical molecule.
         """
         return (yield from _download(self._client, molid, name, path, timeout, hash, ff))
 

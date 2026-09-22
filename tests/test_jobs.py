@@ -136,9 +136,12 @@ def test_structure_search_wait_false_returns_job(api, client, clock):
 
 
 def test_structure_search_blocking(api, client):
-    api.post("/structures/search").respond(200, json={"items": [{"molid": 21, "rmsd": 0.01}]})
-    matches = client.structures.search("ATOM", netcharge=0)
-    assert matches[0].molid == 21 and matches[0].rmsd == 0.01
+    api.post("/structures/search").respond(
+        200, json={"matches": [{"molid": 21, "rmsd": 0.01, "compared": True}], "complete": True}
+    )
+    result = client.structures.search("ATOM", netcharge=0)
+    assert result.matches[0].molid == 21 and result.matches[0].rmsd == 0.01
+    assert result.complete is True
 
 
 def test_chemistry_rejected_on_submit(api, client):

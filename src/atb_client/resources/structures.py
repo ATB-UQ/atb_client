@@ -1,8 +1,4 @@
-"""``client.structures`` — structure search and RMSD alignment.
-
-``rmsd`` is served (WP2). ``search`` (``POST /structures/search``) is not yet (WP3);
-its request shape follows the plan (§6).
-"""
+"""``client.structures`` — structure search and RMSD alignment."""
 
 from __future__ import annotations
 
@@ -10,13 +6,9 @@ from typing import Any, Dict, Iterable, List, Optional, Union
 
 from .. import _ops
 from .._base import Resource, operation
-from ..models import RMSDResult, StructureMatch
+from ..models import RMSDResult, StructureSearchResult
 
 DEFAULT_SEARCH_TIMEOUT = 600.0
-
-
-def _matches(result: Any):
-    return [StructureMatch.model_validate(m) for m in _ops.items_of(result)]
 
 
 class Structures(Resource):
@@ -31,11 +23,19 @@ class Structures(Resource):
         wait: bool = True,
         timeout: Optional[float] = DEFAULT_SEARCH_TIMEOUT,
     ):
-        """``POST /structures/search`` → ``list[StructureMatch]``.
+        """``POST /structures/search`` → :class:`StructureSearchResult`: public
+        molecules of the same formula and net charge, aligned by Blind-RMSD, closest
+        first. ``is_identical`` is the submission duplicate threshold.
 
-        ``netcharge="*"`` matches any charge. With ``wait=False`` the call returns at
-        once with a :class:`Job` whose ``.result(timeout=...)`` blocks for the matches
-        (as raw dicts); a search answered immediately comes back as an already-done job.
+        ``netcharge="*"`` matches any charge. The search is budgeted (~105 s
+        server-side): ``.complete`` is ``False`` when some candidates were not aligned
+        in time (listed with ``compared=False``). ``503
+        structure-service-unavailable`` if a SMILES structure is given while the NCI
+        cactus service is down; ``422`` if the structure could not be read.
+
+        With ``wait=False`` the call returns at once with a :class:`Job` whose
+        ``.result(timeout=...)`` blocks for the same shape (as a raw dict); a search
+        answered immediately comes back as an already-done job.
         """
         body: Dict[str, Any] = {"structure": structure, "format": format, "netcharge": netcharge}
         if limit is not None:
@@ -58,7 +58,7 @@ class Structures(Resource):
                 Job(state="done", kind="structure_search", result=value.json()), self._client
             )
         result = value.json() if kind == "response" else value.result_
-        return _matches(result)
+        return StructureSearchResult.model_validate(result)
 
     @operation
     def rmsd(

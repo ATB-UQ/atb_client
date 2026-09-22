@@ -1,11 +1,5 @@
 """``client.molecules`` — search, get, status, the read-only sub-resources, changes;
-and submission, batch, wait.
-
-Served by the WP2 server: ``get``, ``status``, ``search``, ``changes``, ``topologies``,
-``qm``, ``validation``, ``solvation``, ``parameters``, ``tautomers``,
-``conformations``. Not yet (WP3): ``submit``, ``submit_batch``, ``update``,
-``request_deletion``, ``flag``; their request shapes follow the plan (§6) and will
-be checked against the server when it publishes them.
+submission, batch submission, owner edits, deletion requests, flags and remap.
 
 A merged duplicate molid is redirected by the server (``301``) to its canonical
 molecule and the client follows it, so ``get(20)`` can return molecule 21.
@@ -29,6 +23,7 @@ from ..models import (
     MoleculeStatus,
     QMSummary,
     Solvation,
+    SubmissionResult,
     Tautomers,
     Topologies,
     Validation,
@@ -36,6 +31,7 @@ from ..models import (
 
 #: A submission's duplicate search is budgeted at ~105 s server-side; give it room.
 DEFAULT_SUBMIT_TIMEOUT = 600.0
+DEFAULT_REMAP_TIMEOUT = 300.0
 
 
 def _molecule_from_job(client: Any, result: Any):
@@ -110,14 +106,17 @@ class Molecules(Resource):
         max_qm_level: Optional[int] = None,
         moltype: Optional[str] = None,
         callback_url: Optional[str] = None,
+        dry_run: bool = False,
         timeout: Optional[float] = DEFAULT_SUBMIT_TIMEOUT,
     ):
-        """``POST /molecules`` → the new :class:`Molecule`.
+        """``POST /molecules`` → the new :class:`Molecule` (``201``, with ``Location``).
 
         Raises :class:`DuplicateMolecule` (``.molid``, ``.molecule``) when the structure
         already exists — the normal outcome of a re-run — and :class:`ChemistryRejected`
         when it is refused. A slow duplicate search is followed as a job, up to
-        ``timeout`` seconds.
+        ``timeout`` seconds. With ``dry_run=True`` nothing is inserted and the server
+        answers ``200`` with a :class:`SubmissionResult` (``.molid`` is ``None``)
+        instead of a :class:`Molecule`.
         """
         body: Dict[str, Any] = {
             "structure": structure,
@@ -130,6 +129,7 @@ class Molecules(Resource):
             ("max_qm_level", max_qm_level),
             ("moltype", moltype),
             ("callback_url", callback_url),
+            ("dry_run", dry_run if dry_run else None),
         ):
             if value is not None:
                 body[key] = value
@@ -137,8 +137,14 @@ class Molecules(Resource):
             self._client, "POST", "molecules", deadline=_ops.Deadline(timeout), json=body
         )
         if kind == "response":
-            return _ops.bind(Molecule.model_validate(value.json()), self._client)
-        return (yield from _molecule_from_job(self._client, value.result_))
+            payload = value.json()
+            if dry_run or payload.get("molid") is None:
+                return SubmissionResult.model_validate(payload)
+            return _ops.bind(Molecule.model_validate(payload), self._client)
+        result = value.result_
+        if dry_run or (isinstance(result, dict) and result.get("molid") is None):
+            return SubmissionResult.model_validate(result)
+        return (yield from _molecule_from_job(self._client, result))
 
     @operation
     def submit_batch(
@@ -240,15 +246,87 @@ class Molecules(Resource):
 
     @operation
     def flag(self, molid: int, *, reason: str):
-        """``POST /molecules/{molid}/flags`` — report a problem with a molecule."""
+        """``POST /molecules/{molid}/flags`` — report a problem with a molecule you can
+        see; the administrators are emailed. ``reason`` is 5-200 characters (the
+        server's ``details`` field)."""
         response = yield from request(
             self._client,
             "POST",
             f"molecules/{int(molid)}/flags",
-            json={"reason": reason},
+            json={"details": reason},
             not_found=MoleculeNotFound,
         )
         return json_of(response)
+
+    @operation
+    def remap(
+        self,
+        molid: int,
+        structure: str,
+        *,
+        format: Optional[str] = None,
+        mode: Optional[str] = None,
+        names: str = "query",
+        coords: str = "query",
+        outputs: Optional[Sequence[str]] = None,
+        united: bool = False,
+        path: Any = None,
+        timeout: Optional[float] = DEFAULT_REMAP_TIMEOUT,
+    ):
+        """``POST /molecules/{molid}/remap`` → this molecule's outputs written in
+        ``structure``'s atom order (``atom_reorder`` plus the parameter-equivalence
+        proof) as a zip of the requested ``outputs`` plus ``report.json``.
+
+        ``format`` is one of ``pdb``, ``mol``, ``sdf``, ``mdl``, ``molblock``
+        (default: detected). ``mode`` is ``all_atom`` or ``heavy_atom`` (default:
+        detected from ``structure``); a heavy-atom upload accepts protonation from the
+        reference. ``names``/``coords`` pick ``"query"`` (yours) or ``"reference"``
+        (the molecule's) for the written atom names/coordinates. ``outputs`` is any of
+        ``g96``, ``itp``, ``mtb``, ``param_cns``, ``pdb``, ``pqr``, ``top_cns``
+        (default: ``pdb``, ``itp``, ``mtb``); ``united`` selects united-atom.
+
+        With ``path`` (a file, or an existing directory to write into under the
+        server's file name) the zip is streamed to disk and the
+        :class:`~pathlib.Path` returned; without it the bytes are returned. Raises
+        :class:`~atb_client.exceptions.RemapRefused` (422, ``.report``) when the
+        structure could not be mapped onto this molecule.
+        """
+        body: Dict[str, Any] = {
+            "structure": structure,
+            "names": names,
+            "coords": coords,
+            "united": united,
+        }
+        extras = (
+            ("format", format),
+            ("mode", mode),
+            ("outputs", list(outputs) if outputs else None),
+        )
+        for key, value in extras:
+            if value is not None:
+                body[key] = value
+        deadline = _ops.Deadline(timeout)
+        stream_to = _ops.Path(path) if path is not None else None
+        kind, value = yield from _ops.call_with_wait(
+            self._client,
+            "POST",
+            f"molecules/{int(molid)}/remap",
+            deadline=deadline,
+            json=body,
+            stream_to=stream_to,
+            default_name="remap.zip",
+            not_found=MoleculeNotFound,
+        )
+        if kind == "response":
+            return _ops._download_result(value, stream_to)
+        response = yield from request(
+            self._client,
+            "GET",
+            f"jobs/{value.id}/result",
+            stream_to=stream_to,
+            default_name="remap.zip",
+        )
+        return _ops._download_result(response, stream_to)
 
     def _sub(self, model: Any, molid: int, what: str, params: Optional[Dict[str, Any]] = None):
         return (
@@ -289,13 +367,28 @@ class Molecules(Resource):
         return (yield from self._sub(Solvation, molid, "solvation"))
 
     @operation
-    def parameters(self, molid: int, *, ff: Optional[str] = None, hash: Optional[str] = None):
+    def parameters(
+        self,
+        molid: int,
+        *,
+        ff: Optional[str] = None,
+        hash: Optional[str] = None,
+        timeout: Optional[float] = _ops.SERVER_MAX_WAIT,
+    ):
         """``GET /molecules/{molid}/parameters`` → :class:`BondedParameters`: the
         bonded-assignment record of the current (or ``hash``-pinned) topology for force
-        field ``ff`` (default: the server's)."""
-        return (
-            yield from self._sub(BondedParameters, molid, "parameters", {"ff": ff, "hash": hash})
+        field ``ff`` (default: the server's). A current topology that is not cached is
+        generated under the ``?wait=`` convention, up to ``timeout`` seconds."""
+        kind, value = yield from _ops.call_with_wait(
+            self._client,
+            "GET",
+            f"molecules/{int(molid)}/parameters",
+            deadline=_ops.Deadline(timeout),
+            params={"ff": ff, "hash": hash},
+            not_found=MoleculeNotFound,
         )
+        payload = value.json() if kind == "response" else value.result_
+        return _ops.bind(BondedParameters.model_validate(payload), self._client)
 
     @operation
     def tautomers(self, molid: int):
