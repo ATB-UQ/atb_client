@@ -10,9 +10,12 @@ simulation engine wants, and search what already exists — from a script, with 
 - typed exceptions carrying the server's problem body
 - an `atb` CLI whose exit codes a workflow engine can branch on
 
-> **Status: 0.1.0.dev0.** The v1 server is being built alongside this package; the response
-> models here are hand-written from the API design and will be regenerated from the server's
-> published OpenAPI document before 1.0.
+> **Status: 0.1.0.dev0.** The v1 server is being built alongside this package. Everything
+> that *reads* — molecules, their files and sub-resources, reference data, your account and
+> keys — matches the server's published OpenAPI document (work packages 0–2) and is checked
+> against it by `tests/test_contract.py`. Submission, batches, bundles, structure search, jobs,
+> the admin and pipeline surfaces are written to the API design and are not served yet; see
+> [What the server serves today](#what-the-server-serves-today).
 
 ## Install
 
@@ -83,6 +86,49 @@ matches = job.result(timeout=600)                  # blocks for the job
 print(atb.me.usage())                  # today's counters and limits
 ```
 
+### Reading what exists
+
+```python
+from atb_client import ATBClient
+
+atb = ATBClient()
+mine = atb.me.molecules(is_finished=False)          # GET /molecules?owner=me
+for m in atb.molecules.search(q="stilbene", fields=["formula", "common_name"]).all():
+    print(m.molid, m.formula)                       # a partial match costs 10 units, not 1
+
+files = atb.files.list(21)                          # FileList: .topology_hash, .forcefield
+print([f.name for f in files.cached])               # what can be downloaded right now
+old = atb.molecules.topologies(21)                  # every stored version, newest first
+print(atb.molecules.qm(21, level=2).levels)         # energies in kJ/mol
+print(atb.molecules.validation(21).emin_vac.rmsd_nm)
+print(atb.molecules.solvation(21).results)          # TI free energies, kJ/mol
+record = atb.molecules.parameters(21, hash=old.items[0].hash)   # the bonded-assignment record
+family = atb.molecules.tautomers(21)
+
+print(atb.forcefields.list().default_forcefield)
+atb.forcefields.mtb("54A7", format="gxx", path="54A7.mtb")
+for motif in atb.parameters.motifs(kind="bond", limit=50):
+    print(motif.key_hex, motif.value_median)
+print(atb.statistics.get().indicators)
+print(atb.structures.rmsd(molids=[21, 22]).rmsd)    # nm, after optimal alignment
+print(atb.me.get().scopes, atb.me.usage().daily_remaining)
+```
+
+Timestamps are timezone-aware UTC `datetime`s. A molid that was merged into another as a
+duplicate is redirected by the server (`301`) and followed, so `atb.molecules.get(20)` may
+return molecule 21; the key is sent on only while the redirect stays on the same host.
+
+### What the server serves today
+
+These calls are written to the API design (plan §6) but the server does not have their routes
+yet, so they currently fail with `NotFound` (or `APIError` 405): `molecules.submit`,
+`molecules.submit_batch`, `molecules.update`, `molecules.request_deletion`, `molecules.flag`,
+`bundles.download`, `structures.search`, `jobs.*`, `admin.*`, `admin.molecules.regenerate`
+and `pipeline.*`. Until topology generation runs as a server-side job, downloading a file
+that is not cached raises `GenerationRequired` (409); afterwards the same call waits for the
+job. `tests/test_contract.py` keeps this list honest: it fails as soon as the server's schema
+gains one of these routes.
+
 ### Molecule stages
 
 `mol.status.stage` is one of `queued`, `qm0`, `qm1`, `qm2` (in progress) or `finished`,
@@ -95,8 +141,12 @@ two.
 
 One vocabulary everywhere: `<format>_<atoms>[_<geometry>]`, e.g. `itp_aa`, `mtb_ua`,
 `pdb_aa_opt`, `pdb_ua_unopt`, `g96_aa_opt`, `top_aa`, `lgf`, plus `qm0_log`, `qm1_log`,
-`qm2_log`, `qm_data`. `mol.files.list()` shows what exists. Pin a topology version with
-`hash=`; a version no longer cached raises `TopologyVersionGone`.
+`qm2_log`, `qm_data`, `emin_vac`, `emin_vac_ref`. `mol.files.list()` shows what exists for
+the current topology, with each name's v0.1 alias (`legacy_name`), which the server also
+accepts. Pin a topology version with `hash=`; a version no longer stored raises
+`TopologyVersionGone`. QM logs, `qm_data` and `atb_log` are restricted to partner and admin
+accounts and service keys: they are left out of the listing for anyone else, and downloading
+one raises `PermissionDenied`.
 
 ### Async
 
@@ -126,7 +176,8 @@ members kept):
 | `AuthenticationError` | 401: no key, unknown, expired or revoked |
 | `PermissionDenied` | 403: missing scope, or not visible to you |
 | `NotFound` (`MoleculeNotFound`) | 404 |
-| `Conflict` (`DuplicateMolecule`) | 409; a duplicate has `.molid` and `.molecule` |
+| `Conflict` (`DuplicateMolecule`, `GenerationRequired`) | 409; a duplicate has `.molid` and `.molecule`; `GenerationRequired` is an uncached file (`.name`) |
+| `MoleculeMoved` | 301 on a non-GET call: merged into `.canonical_molid` (GETs follow it) |
 | `TopologyVersionGone` | 410: the pinned `hash` is no longer cached |
 | `ChemistryRejected` | 422: refused on chemical grounds; `.reason` |
 | `RateLimited` | 429; `.retry_after` (s), `.limit` |
@@ -152,7 +203,7 @@ atb download 21 itp_aa pdb_aa_opt -o lig/
 atb bundle --molids-from molids.txt itp_aa pdb_aa_opt -o ligs/
 atb search --inchi-key LFQSCWFLJHTTHZ-UHFFFAOYSA-N
 atb ifp 54A7 -o 54A7.ifp
-atb keys create --scopes read,submit --expires 90d
+atb keys create --name laptop --scopes read,submit --expires 90d
 atb keys list
 atb usage
 ```
@@ -226,7 +277,7 @@ names), so migrate at your own pace — but move new code straight to `ATBClient
 | `download_file(molid=21, atb_format="pdb_aa", fnme=p)` | `atb.files.download(21, "pdb_aa_opt", p)` |
 | `api.Molecules.submit(pdb=..., netcharge=0, ...)` | `atb.molecules.submit(pdb_text, format="pdb", netcharge=0)` |
 | `api.Molecules.structure_search(...)` | `atb.structures.search(...)` |
-| `api.RMSD.align(molids=...)` | `atb.structures.rmsd(molids=...)` |
+| `api.RMSD.align(molids=...)` | `atb.structures.rmsd(molids=...)` (always the full matrix) |
 
 ## Development
 
@@ -235,8 +286,52 @@ pip install -e ".[dev]"
 python -m pytest -q                     # respx-mocked; no network
 ATB_LIVE_TESTS=1 ATB_API_KEY=... python -m pytest -q -m live   # read-only smoke test
 ruff check src tests && ruff format --check src tests
-scripts/generate_models.sh [openapi.json URL or file]            # regenerate models
+scripts/generate_models.sh tests/data/openapi.json               # regenerate models
 ```
+
+### The server's schema and the models
+
+`tests/data/openapi.json` is the server's OpenAPI document, checked in.
+`src/atb_client/generated/models.py` is generated from it by `scripts/generate_models.sh`
+with `datamodel-code-generator==0.26.5` (the last release that can target Python 3.9;
+`uvx --from "datamodel-code-generator[http]==0.26.5" datamodel-codegen` works if you would
+rather not install it). CI regenerates it and fails on any difference, and — once v1 is
+deployed — diffs against the live `/api/v1/openapi.json`.
+
+The models the client returns are the hand-written ones in `atb_client.models`, not the
+generated classes, and do not subclass them:
+
+- the generated classes require fields exactly as the server declares them, but
+  `GET /molecules?fields=` returns projections, and an older client must survive a newer
+  server dropping a field — so only identity fields are required here;
+- the server's schema types its timestamps as strings (a custom serialiser hides the
+  `date-time` format); here they are aware UTC `datetime`s;
+- the hand-written classes carry behaviour (`wait()`, `files`, `Page.all()`), and allow
+  extra fields, so a field the server adds reaches `model.model_extra` before the client is
+  regenerated.
+
+`tests/test_contract.py` holds the two together: every field of every generated response
+model must exist on its hand-written counterpart, every client call to a served route must
+match an operation's method, path, `operationId` and parameters, and the calls to routes not
+served yet are listed and checked to still be missing.
+
+`stage` (a molecule's) and `state` (a job's) stay plain strings in the hand-written models,
+never an `Enum` or `Literal`, so that a stage the server adds does not stop an older client
+from parsing a status; `atb_client.models.STAGES` documents the current set. The generator
+keeps `--enum-field-as-literal all`, which only affects the generated reference classes (and
+is a no-op today: the server declares these fields as plain strings too).
+
+To refresh the schema from a server checkout (no server needs to run):
+
+```bash
+cd website && python -c "import json; from website.api_v1.app import create_app; \
+    print(json.dumps(create_app('public', redis_client=object()).openapi(), indent=2))" \
+    > ../atb_client/tests/data/openapi.json
+cd ../atb_client && scripts/generate_models.sh tests/data/openapi.json && python -m pytest -q
+```
+
+Always the `public` app: the internal one adds only the root routes, which the client never
+calls.
 
 Releases are cut by pushing a `v<version>` tag matching `src/atb_client/_version.py`; GitHub
 Actions builds and publishes to PyPI by trusted publishing.
