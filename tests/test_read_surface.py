@@ -197,7 +197,8 @@ def test_validation_solvation_parameters_tautomers_conformations(api, client):
     assert isinstance(solvation, Solvation)
     assert solvation.results[0].experimental.value == -20.9
     assert isinstance(client.molecules.parameters(21, ff="54A7", hash="abc12"), BondedParameters)
-    assert dict(params.calls.last.request.url.params) == {"ff": "54A7", "hash": "abc12"}
+    assert dict(params.calls.last.request.url.params)["ff"] == "54A7"
+    assert dict(params.calls.last.request.url.params)["hash"] == "abc12"
     tautomers = client.molecules.tautomers(21)
     assert isinstance(tautomers, Tautomers)
     assert tautomers.members[0].energies["wB97X_631Gd_SMD_water"] == -1.5

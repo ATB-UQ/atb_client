@@ -76,9 +76,18 @@ class Operation(NamedTuple):
 
 
 def _deref(schema: Dict[str, Any]) -> Dict[str, Any]:
-    while "$ref" in schema:
-        schema = SCHEMA["components"]["schemas"][schema["$ref"].rsplit("/", 1)[-1]]
-    return schema
+    while True:
+        if "$ref" in schema:
+            schema = SCHEMA["components"]["schemas"][schema["$ref"].rsplit("/", 1)[-1]]
+            continue
+        if "anyOf" in schema:
+            # An optional body (e.g. `Optional[DeletionRequest] = None`): the real
+            # schema is the one branch that isn't `{"type": "null"}`.
+            branches = [b for b in schema["anyOf"] if b.get("type") != "null"]
+            if len(branches) == 1:
+                schema = branches[0]
+                continue
+        return schema
 
 
 def _pattern(template: str) -> re.Pattern:
@@ -278,44 +287,53 @@ IMPLEMENTED: Dict[str, Tuple[Call, str]] = {
         lambda c: c.statistics.get("molecules", include_validation_set=True, force_regen=False),
         "statistics_get",
     ),
+    "molecules.remap": (
+        lambda c: c.molecules.remap(21, "ATOM", format="pdb"),
+        "molecules_remap",
+    ),
+    "molecules.submit": (
+        lambda c: c.molecules.submit("ATOM", format="pdb", netcharge=0),
+        "molecules_submit",
+    ),
+    "molecules.submit_batch": (
+        lambda c: c.molecules.submit_batch(sdf="$$$$"),
+        "molecules_submit_batch",
+    ),
+    "molecules.update": (
+        lambda c: c.molecules.update(21, public=True),
+        "molecules_update",
+    ),
+    "molecules.request_deletion": (
+        lambda c: c.molecules.request_deletion(21, reason="no longer needed"),
+        "molecules_deletion_request",
+    ),
+    "molecules.flag": (
+        lambda c: c.molecules.flag(21, reason="wrong charge"),
+        "molecules_flag",
+    ),
+    "bundles.download": (
+        lambda c: c.bundles.download(molids=[21], names=["itp_aa"]),
+        "bundles_create",
+    ),
+    "structures.search": (
+        lambda c: c.structures.search("ATOM", netcharge=0),
+        "structures_search",
+    ),
+    "jobs.get": (lambda c: c.jobs.get("j1"), "jobs_get"),
+    "jobs.list": (lambda c: c.jobs.list(state="running", limit=5, cursor="k"), "jobs_list"),
+    "jobs.cancel": (lambda c: c.jobs.cancel("j1"), "jobs_cancel"),
+    "jobs.wait": (lambda c: c.jobs.wait("j1"), "jobs_get"),
+    "jobs.result": (lambda c: c.jobs.result("j1"), "jobs_result"),
 }
 
 #: Query parameters the client sends that an implemented operation does not declare
 #: yet, by operationId. ``wait`` is the D8 convention: the server adds it with
 #: generation-on-miss (WP3), and FastAPI ignores it until then.
-EXPECTED_EXTRA_PARAMS: Dict[str, Set[str]] = {
-    "molecules_files_get": {"wait"},
-}
+EXPECTED_EXTRA_PARAMS: Dict[str, Set[str]] = {}
 
 #: Client calls aimed at routes the server has not built yet (WP3, WP5, WP6):
 #: id -> (call, "METHOD /path/template"). Their shapes follow the plan (§6).
 UNBUILT: Dict[str, Tuple[Call, str]] = {
-    "molecules.submit": (
-        lambda c: c.molecules.submit("ATOM", format="pdb", netcharge=0),
-        "POST /molecules",
-    ),
-    "molecules.submit_batch": (
-        lambda c: c.molecules.submit_batch(sdf="$$$$"),
-        "POST /molecules:batch",
-    ),
-    "molecules.update": (lambda c: c.molecules.update(21, public=True), "PATCH /molecules/{molid}"),
-    "molecules.request_deletion": (
-        lambda c: c.molecules.request_deletion(21),
-        "POST /molecules/{molid}/deletion-requests",
-    ),
-    "molecules.flag": (
-        lambda c: c.molecules.flag(21, reason="x"),
-        "POST /molecules/{molid}/flags",
-    ),
-    "bundles.download": (
-        lambda c: c.bundles.download(molids=[21], names=["itp_aa"]),
-        "POST /bundles",
-    ),
-    "structures.search": (lambda c: c.structures.search("ATOM"), "POST /structures/search"),
-    "jobs.get": (lambda c: c.jobs.get("j1"), "GET /jobs/{id}"),
-    "jobs.list": (lambda c: c.jobs.list(state="running"), "GET /jobs"),
-    "jobs.cancel": (lambda c: c.jobs.cancel("j1"), "DELETE /jobs/{id}"),
-    "jobs.wait": (lambda c: c.jobs.wait("j1"), "GET /jobs/{id}"),
     "admin.users.list": (lambda c: c.admin.users.list("x"), "GET /admin/users"),
     "admin.users.get": (lambda c: c.admin.users.get(3), "GET /admin/users/{id}"),
     "admin.users.update": (
@@ -425,17 +443,7 @@ UNBUILT: Dict[str, Tuple[Call, str]] = {
 #: The routes the client calls that the server does not have. Checked to be exactly
 #: the routes UNBUILT reaches, and each to be absent from the schema.
 EXPECTED_MISSING: Set[str] = {
-    "POST /molecules",
-    "POST /molecules:batch",
-    "PATCH /molecules/{molid}",
-    "POST /molecules/{molid}/deletion-requests",
-    "POST /molecules/{molid}/flags",
     "POST /molecules/{molid}/topologies",
-    "POST /bundles",
-    "POST /structures/search",
-    "GET /jobs",
-    "GET /jobs/{id}",
-    "DELETE /jobs/{id}",
     "GET /admin/users",
     "GET /admin/users/{id}",
     "PATCH /admin/users/{id}",
@@ -617,10 +625,20 @@ MODEL_MAP: Dict[str, type] = {
     "Usage": models.Usage,
     "VacuumValidation": models.VacuumValidation,
     "Validation": models.Validation,
-    # The server has two schemas named TautomerMember (molecules and reference);
-    # FastAPI disambiguates them by module path. One client model serves both.
-    "WebsiteApiV1SchemasMoleculesTautomerMember": models.TautomerMember,
-    "WebsiteApiV1SchemasReferenceTautomerMember": models.TautomerMember,
+    "TautomerMember": models.TautomerMember,
+    # A distinct schema (schemas/reference.py) from the molecules one above -- a
+    # tautomer group's members carry the same fields (compound_id required rather
+    # than optional; otherwise identical). One client model serves both.
+    "TautomerGroupMember": models.TautomerMember,
+    "Job": models.Job,
+    "JobPage": models.Page,
+    "BatchItem": models.BatchItem,
+    "BatchResult": models.BatchResult,
+    "DeletionRequestResult": models.DeletionRequestResult,
+    "FlagResult": models.FlagResult,
+    "BundleResult": models.BundleResult,
+    "StructureMatch": models.StructureMatch,
+    "StructureSearchResult": models.StructureSearchResult,
 }
 
 #: Generated classes that are not responses the client parses.
@@ -632,6 +650,16 @@ NOT_RESPONSES = {
     "ValidationError",
     "MoleculeLinks",  # Molecule.links is a dict of paths
     "ForcefieldLinks",  # Forcefield.links likewise
+    # WP3 request bodies (plan §6): the resource methods' keyword arguments.
+    "SubmissionRequest",
+    "BatchStructure",
+    "BatchRequest",
+    "MoleculeUpdate",
+    "DeletionRequest",
+    "FlagRequest",
+    "BundleRequest",
+    "StructureSearchRequest",
+    "RemapRequest",
 }
 
 

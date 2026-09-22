@@ -42,6 +42,7 @@ __all__ = [
     "PayloadTooLarge",
     "PermissionDenied",
     "RateLimited",
+    "RemapRefused",
     "ServerError",
     "ServiceUnavailable",
     "Timeout",
@@ -156,12 +157,13 @@ class Conflict(APIError):
 
 
 class GenerationRequired(Conflict):
-    """409 ``generation-required`` — the file is not cached and must be generated first.
+    """409 ``generation-required`` — what the WP2 read surface answered for an uncached
+    topology file, before the server generated on demand.
 
-    What the WP2 server answers for an uncached topology file: it does not generate on
-    a download yet. Once the server runs generation as a job (WP3) the same download
-    answers ``202`` instead, which :meth:`Files.download` already waits through, and
-    this exception stops occurring. ``.name`` is the file asked for."""
+    The WP3 server never sends this any more: an uncached file now generates as a job
+    and the download answers ``202`` instead, which :meth:`Files.download` already
+    waits through. Kept only for compatibility with anything still catching it.
+    ``.name`` is the file asked for."""
 
     @property
     def name(self) -> Optional[str]:
@@ -216,6 +218,17 @@ class ChemistryRejected(APIError):
     def reason(self) -> Optional[str]:
         extra = self.problem.model_extra or {}
         return extra.get("reason") or self.problem.detail
+
+
+class RemapRefused(ChemistryRejected):
+    """422 ``remap-refused`` — ``atom_reorder`` could not map the uploaded structure onto
+    this molecule (not the same molecule, or which atom is which cannot be decided).
+    ``.report`` is the complete mapping report the server attached, the same one the
+    molecule page's "Match to my structure" panel reads."""
+
+    @property
+    def report(self) -> Optional[Dict[str, Any]]:
+        return (self.problem.model_extra or {}).get("report")
 
 
 class RateLimited(APIError):
@@ -326,11 +339,25 @@ _BY_SLUG: Dict[str, Type[APIError]] = {
     "molecule-not-found": MoleculeNotFound,
     "conflict": Conflict,
     "generation-locked": Conflict,
+    "topology-not-ready": Conflict,
+    "job-not-finished": Conflict,
+    "job-finished": Conflict,
+    "job-cancelled": Conflict,
+    "molecule-public": Conflict,
     "duplicate-molecule": DuplicateMolecule,
     "topology-version-gone": TopologyVersionGone,
+    "job-result-expired": TopologyVersionGone,
     "chemistry-rejected": ChemistryRejected,
     "infeasible-structure": ChemistryRejected,
     "invalid-structure": ChemistryRejected,
+    "topology-generation-failed": ChemistryRejected,
+    "remap-refused": RemapRefused,
+    "netcharge-missing": ValidationError,
+    "netcharge-invalid": ValidationError,
+    "batch-too-large": PayloadTooLarge,
+    "private-submission-not-allowed": PermissionDenied,
+    "not-molecule-owner": PermissionDenied,
+    "user-label-not-allowed": PermissionDenied,
     "rate-limited": RateLimited,
     "burst-limit-exceeded": RateLimited,
     "daily-limit-exceeded": RateLimited,

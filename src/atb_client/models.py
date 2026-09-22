@@ -58,13 +58,16 @@ __all__ = [
     "BatchItem",
     "BatchResult",
     "BondedParameters",
+    "BundleResult",
     "Change",
     "Conformation",
     "Conformations",
+    "DeletionRequestResult",
     "ExperimentalValue",
     "FileEntry",
     "FileInfo",
     "FileList",
+    "FlagResult",
     "Forcefield",
     "ForcefieldList",
     "Health",
@@ -87,11 +90,14 @@ __all__ = [
     "QuotaRequestReceived",
     "RMSDInput",
     "RMSDResult",
+    "RemapResult",
     "Solvation",
     "SolvationResult",
     "StatisticPoint",
     "Statistics",
     "StructureMatch",
+    "StructureSearchResult",
+    "SubmissionResult",
     "TautomerGroup",
     "TautomerMember",
     "Tautomers",
@@ -211,6 +217,7 @@ class Molecule(_Bound):
     has_ti: Optional[bool] = None
     started_at: Optional[datetime] = None
     topology_generated_at: Optional[datetime] = None
+    topology_updated_at: Optional[datetime] = None
     topology_hash: Optional[str] = None
     forcefield: Optional[str] = None
     status: Optional[MoleculeStatus] = None
@@ -326,7 +333,11 @@ class Job(_Bound):
     # The wire field ``result`` is held as ``result_`` so that ``job.result(timeout=...)``
     # can be the method that waits for it.
     result_: Optional[Any] = Field(default=None, alias="result")
+    result_status: Optional[int] = Field(
+        None, description="The HTTP status the originating request would have had."
+    )
     error: Optional[Any] = None
+    links: Dict[str, str] = {}
 
     @property
     def done(self) -> bool:
@@ -764,6 +775,7 @@ class Health(_Model):
     version: Optional[str] = None
     database: Optional[bool] = None
     redis: Optional[bool] = None
+    broker: Optional[bool] = None
     schema_present: Optional[bool] = None
     tables: Dict[str, bool] = {}
 
@@ -849,17 +861,63 @@ class QuotaRequestReceived(_Model):
     key_id: Optional[int] = None
 
 
-# --------------------------------------------------------------------------- not yet served
-# The server has not built these routes yet (WP3); the shapes follow the plan (§6, D8).
+# --------------------------------------------------------------------------- submission
+
+
+class SubmissionResult(_Model):
+    """``POST /molecules`` with ``dry_run=True`` (``200``): what would have been
+    submitted, without inserting anything — ``molid``/``compound_id`` are ``None``."""
+
+    molid: Optional[int] = None
+    compound_id: Optional[int] = None
+    client_reference: Optional[str] = None
+    dry_run: bool = False
+
+
+class RemapResult(_Model):
+    """The ``report.json`` inside a successful ``molecules.remap()`` zip, or the report
+    carried by a :class:`~atb_client.exceptions.RemapRefused` (422)."""
+
+    mapping: Optional[Dict[str, Any]] = None
+
+
+class DeletionRequestResult(_Model):
+    """``POST /molecules/{molid}/deletion-requests`` (``201``)."""
+
+    molid: int
+    scheduled_for_deletion: bool = False
+
+
+class FlagResult(_Model):
+    """``POST /molecules/{molid}/flags`` (``201``)."""
+
+    molid: int
+    flagged: bool = False
+
+
+class BundleResult(_Model):
+    """``POST /bundles`` (``200``): the built zip's location, or (when the caller
+    asked for it as a job) the job that will build it."""
+
+    job_id: Optional[str] = None
+    download_url: Optional[str] = None
+    size: Optional[int] = None
+    forcefield: Optional[str] = None
+    files: Optional[int] = None
+    missing: List[Dict[str, Any]] = []
+    retention_hours: Optional[int] = None
 
 
 class BatchItem(_Model):
-    """One item of a ``POST /molecules:batch`` response."""
+    """One item of a ``POST /molecules:batch`` response, in input order."""
 
     index: int
     client_reference: Optional[str] = None
     molid: Optional[int] = None
-    problem: Optional[Problem] = None
+    compound_id: Optional[int] = None
+    problem: Optional[Dict[str, Any]] = Field(
+        None, description="Why this item was not submitted (RFC 9457 body)."
+    )
 
     @property
     def ok(self) -> bool:
@@ -867,21 +925,32 @@ class BatchItem(_Model):
 
     @property
     def duplicate(self) -> bool:
-        return bool(self.problem and (self.problem.type or "").endswith("duplicate-molecule"))
+        type_ = str(self.problem.get("type") or "") if self.problem else ""
+        return type_.endswith("duplicate-molecule")
 
 
 class BatchResult(_Model):
     items: List[BatchItem] = []
+    submitted: int = 0
+    refused: int = 0
+    dry_run: bool = False
+    submissions_remaining: Optional[int] = Field(
+        None, description="Of today's submission cap; null: uncapped."
+    )
 
     @property
     def molids(self) -> List[int]:
-        """Every molid the batch resolved to — new entries and adopted duplicates alike."""
+        """Every molid the batch resolved to — new entries and adopted duplicates alike.
+
+        A duplicate item carries no top-level ``molid`` (the server sets it only on a
+        submitted item); the existing molecule's id is in ``.problem['molid']``.
+        """
         out: List[int] = []
         for item in self.items:
             if item.molid is not None:
                 out.append(item.molid)
             elif item.duplicate and item.problem is not None:
-                molid = (item.problem.model_extra or {}).get("molid")
+                molid = item.problem.get("molid")
                 if molid is not None:
                     out.append(int(molid))
         return out
@@ -893,6 +962,25 @@ class BatchResult(_Model):
 
 
 class StructureMatch(_Model):
+    """One candidate of a ``structures.search()`` result."""
+
     molid: int
+    rmsd: Optional[float] = Field(
+        None,
+        description="Blind-RMSD in nm after optimal alignment; null when the search "
+        "budget ran out before this candidate was aligned.",
+    )
     is_identical: Optional[bool] = None
-    rmsd: Optional[float] = None
+    compared: bool = True
+
+
+class StructureSearchResult(_Model):
+    """``POST /structures/search`` → public molecules matching a structure, closest
+    first. ``complete=False`` means the ~105 s search budget ran out before every
+    candidate was aligned; those are still listed, with ``compared=False``."""
+
+    search_molecule: Dict[str, Optional[str]] = {}
+    matches: List[StructureMatch] = []
+    total_matches: int = 0
+    uncompared: int = 0
+    complete: bool = True
