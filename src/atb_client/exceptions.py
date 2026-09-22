@@ -309,7 +309,6 @@ _BY_SLUG: Dict[str, Type[APIError]] = {
     "method-not-allowed": APIError,
     "account-expired": AuthenticationError,
     "account-inactive": AuthenticationError,
-    "insufficient-scope": PermissionDenied,
     "key-escalation": PermissionDenied,
     "user-key-required": PermissionDenied,
     "key-not-found": NotFound,
