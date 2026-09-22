@@ -6,7 +6,7 @@ import zipfile
 import pytest
 
 from atb_client import TopologyVersionGone
-from atb_client.models import FileInfo
+from atb_client.models import FileEntry, FileList
 
 from .conftest import molecule
 
@@ -15,20 +15,40 @@ def test_list_files(api, client):
     api.get("/molecules/21/files").respond(
         200,
         json={
+            "molid": 21,
+            "forcefield": "54A7",
+            "topology_hash": "abc12",
             "items": [
-                {"name": "itp_aa", "media_type": "text/plain", "size": 1200, "cached": True},
+                {
+                    "name": "itp_aa",
+                    "legacy_name": "itp_allatom",
+                    "media_type": "text/plain",
+                    "source": "topology",
+                    "cached": True,
+                    "size": 1200,
+                    "restricted": False,
+                    "url": "/api/v1/molecules/21/files/itp_aa",
+                },
                 {
                     "name": "pdb_aa_opt",
+                    "legacy_name": "pdb_allatom_optimised",
                     "media_type": "chemical/x-pdb",
-                    "size": 800,
+                    "source": "topology",
                     "cached": False,
+                    "size": None,
+                    "restricted": False,
+                    "url": "/api/v1/molecules/21/files/pdb_aa_opt",
                 },
-            ]
+            ],
         },
     )
     files = client.files.list(21)
+    assert isinstance(files, FileList)
     assert [f.name for f in files] == ["itp_aa", "pdb_aa_opt"]
-    assert isinstance(files[0], FileInfo)
+    assert isinstance(files[0], FileEntry)
+    assert files.topology_hash == "abc12" and files.forcefield == "54A7"
+    assert [f.name for f in files.cached] == ["itp_aa"]
+    assert files[0].legacy_name == "itp_allatom"
 
 
 def test_download_writes_file(api, client, tmp_path):
@@ -96,6 +116,9 @@ def test_bundle_limit(client):
 def test_forcefield_ifp(api, client, tmp_path):
     route = api.get("/forcefields/54A7/ifp").respond(200, content=b"TITLE\n")
     assert client.forcefields.ifp("54A7", format="gxx") == "TITLE\n"
-    assert route.calls.last.request.url.params["format"] == "gxx"
+    assert dict(route.calls.last.request.url.params) == {"format": "gxx"}  # no ?wait=
     path = client.forcefields.ifp("54A7", path=tmp_path / "54A7.ifp")
     assert path.read_text() == "TITLE\n"
+    assert dict(route.calls.last.request.url.params) == {}  # the server's default format
+    client.forcefields.ifp("54A7", rules=True, ifp_hash="d41d8cd9")
+    assert dict(route.calls.last.request.url.params) == {"rules": "true", "ifp_hash": "d41d8cd9"}

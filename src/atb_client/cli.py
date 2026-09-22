@@ -43,6 +43,7 @@ from .exceptions import (
     RateLimited,
     Timeout,
 )
+from .resources.me import days_of
 
 EXIT_OK = 0
 EXIT_ERROR = 1
@@ -257,7 +258,11 @@ def cmd_ifp(atb: ATBClient, args: argparse.Namespace) -> int:
 
 def cmd_keys_create(atb: ATBClient, args: argparse.Namespace) -> int:
     scopes = [s for s in args.scopes.split(",") if s] if args.scopes else None
-    key = atb.me.keys.create(name=args.name, scopes=scopes, expires=args.expires)
+    try:
+        days = days_of(args.expires)
+    except ValueError as exc:
+        raise UsageError(str(exc)) from exc
+    key = atb.me.keys.create(args.name or "atb cli", scopes=scopes, expires_in_days=days)
     _emit(args, key)
     if key.key:
         print(
@@ -391,7 +396,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     p = add("ifp", cmd_ifp, "a force field's interaction parameter file")
     p.add_argument("ff", help="e.g. 54A7")
-    p.add_argument("--format", choices=["gxx", "g96"], default="gxx")
+    p.add_argument("--format", choices=["gxx", "g96"], help="default: the server's (g96)")
     p.add_argument("-o", "--output", help="write here instead of stdout")
 
     keys = sub.add_parser("keys", help="manage your API keys", parents=[common])
@@ -399,9 +404,9 @@ def build_parser() -> argparse.ArgumentParser:
     keys_sub.required = True
     p = keys_sub.add_parser("create", help="mint a key (shown once)", parents=[common])
     p.set_defaults(func=cmd_keys_create)
-    p.add_argument("--name")
+    p.add_argument("--name", help='a label for the key (default "atb cli")')
     p.add_argument("--scopes", help="comma-separated subset of your key's scopes")
-    p.add_argument("--expires", help="e.g. 90d, or an RFC 3339 time")
+    p.add_argument("--expires", help="days until it expires, e.g. 90 or 90d")
     p = keys_sub.add_parser("list", help="list keys", parents=[common])
     p.set_defaults(func=cmd_keys_list)
     p = keys_sub.add_parser("revoke", help="revoke a key", parents=[common])

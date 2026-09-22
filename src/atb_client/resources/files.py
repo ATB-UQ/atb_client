@@ -3,6 +3,14 @@
 File names are the v1 vocabulary ``<format>_<atoms>[_<geometry>]`` — ``itp_aa``,
 ``pdb_aa_opt``, ``mtb_ua``, ``lgf``, ``qm1_log`` ... (plan §6). The v0.1 names
 (``itp_allatom``, ``pdb_allatom_optimised``) are accepted by the server as aliases.
+
+Restricted files (the QM logs, ``qm_data``, ``atb_log``) need a partner or admin
+account or a service key; for anyone else they are left out of ``list()`` and
+``download()`` raises :class:`PermissionDenied` (``file-restricted``).
+
+Until the server generates on demand (WP3), downloading a topology file that is not
+cached raises :class:`GenerationRequired` (409); afterwards the same call waits for
+the generation job (the server's ``202``) up to ``timeout``.
 """
 
 from __future__ import annotations
@@ -13,7 +21,7 @@ from .. import _ops
 from .._base import Resource, operation
 from .._transport import request
 from ..exceptions import MoleculeNotFound
-from ..models import FileInfo
+from ..models import FileList
 
 DEFAULT_DOWNLOAD_TIMEOUT = 300.0
 
@@ -26,7 +34,7 @@ def _list(client: Any, molid: int, hash: Optional[str], ff: Optional[str]):
         params={"hash": hash, "ff": ff},
         not_found=MoleculeNotFound,
     )
-    return [FileInfo.model_validate(item) for item in _ops.items_of(response.json())]
+    return FileList.model_validate(response.json())
 
 
 def _download(
@@ -53,8 +61,9 @@ def _download(
 class Files(Resource):
     @operation
     def list(self, molid: int, *, hash: Optional[str] = None, ff: Optional[str] = None):
-        """``GET /molecules/{molid}/files`` → ``list[FileInfo]`` for the current topology
-        (or the one pinned by ``hash``)."""
+        """``GET /molecules/{molid}/files`` → :class:`FileList` (iterable over its
+        :class:`FileEntry` items) for the current topology, or the one pinned by
+        ``hash``, of force field ``ff`` (default: the server's)."""
         return (yield from _list(self._client, molid, hash, ff))
 
     @operation
@@ -74,8 +83,10 @@ class Files(Resource):
         server's file name) the body is streamed to disk atomically and the
         :class:`~pathlib.Path` returned; without it the bytes are returned. A file
         that must be generated first is waited for (the 202/job dance) up to
-        ``timeout`` seconds, then :class:`Timeout`. A pinned ``hash`` that is no longer
-        cached raises :class:`TopologyVersionGone`.
+        ``timeout`` seconds, then :class:`Timeout`; the WP2 server instead answers
+        :class:`GenerationRequired`. A pinned ``hash`` that is no longer stored raises
+        :class:`TopologyVersionGone`. A merged duplicate molid is followed to its
+        canonical molecule.
         """
         return (yield from _download(self._client, molid, name, path, timeout, hash, ff))
 

@@ -88,7 +88,7 @@ def test_search_molids_and_partial(api, legacy_api):
     assert legacy_api.Molecules.search(
         common_name="eth", match_partial=True, return_type="molids"
     ) == [1, 2]
-    assert dict(route.calls.last.request.url.params) == {"q": "eth"}
+    assert dict(route.calls.last.request.url.params) == {"common_name": "eth", "match": "partial"}
 
 
 def test_molid_and_molids(api, legacy_api):
@@ -114,11 +114,27 @@ def test_submit_duplicate_raises(api, legacy_api):
 
 
 def test_rmsd_align(api, legacy_api):
-    route = api.post("/structures/rmsd").respond(200, json={"rmsd": 0.1})
-    assert legacy_api.RMSD.align(molids="21,22") == {"rmsd": 0.1}
+    result = {
+        "inputs": [
+            {"index": 0, "molid": 21, "source": "pdb_allatom_optimised"},
+            {"index": 1, "molid": 22, "source": "pdb_allatom_optimised"},
+        ],
+        "rmsd_matrix": [[0.0, 0.1], [0.1, 0.0]],
+        "rmsd": 0.1,
+    }
+    route = api.post("/structures/rmsd").respond(200, json=result)
+    assert legacy_api.RMSD.align(molids="21,22") == result
     import json
 
-    assert json.loads(route.calls.last.request.content)["molids"] == [21, 22]
+    assert json.loads(route.calls.last.request.content) == {"molids": [21, 22]}
+
+
+def test_rmsd_reference_goes_first(api, legacy_api):
+    route = api.post("/structures/rmsd").respond(200, json={"inputs": [], "rmsd_matrix": []})
+    legacy_api.RMSD.matrix(reference_pdb="REF", pdb_1="B", pdb_0="A")
+    import json
+
+    assert json.loads(route.calls.last.request.content) == {"structures": ["REF", "A", "B"]}
 
 
 def test_internal_token_header(api):

@@ -89,9 +89,23 @@ def molecule(molid: int = 21, **extra):
         "netcharge": 0,
         "public": True,
         "qm_level": 2,
-        "max_qm_level": 2,
-        "status": {"stage": "finished", "terminal": True},
+        "maximum_qm_level": 2,
+        "is_finished": True,
+        "has_error": False,
+        "submitted_at": "2026-09-01T02:03:04Z",
+        "owned_by_caller": False,
+        "forcefield": "54A7",
+        "status": {
+            "molid": molid,
+            "stage": "finished",
+            "terminal": True,
+            "running": False,
+            "detail": "The topology is complete.",
+            "qm_level": 2,
+            "maximum_qm_level": 2,
+        },
         "topology_hash": "abc123",
+        "links": {"self": f"/api/v1/molecules/{molid}"},
     }
     body.update(extra)
     return body

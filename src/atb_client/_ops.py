@@ -267,6 +267,47 @@ def download(
     raise Timeout(f"{path}: the server kept answering 202 after its job finished")
 
 
+def fetch_file(
+    client: Any,
+    path: str,
+    *,
+    target: Optional[Any],
+    default_name: str,
+    params: Optional[Dict[str, Any]] = None,
+    not_found: Type[NotFound] = NotFound,
+) -> Op:
+    """GET a file that is never generated on demand (reference data): no ``?wait=``,
+    no job. With ``target`` stream it there and return the path; else the bytes."""
+    stream_to = Path(target) if target is not None else None
+    response = yield from request(
+        client,
+        "GET",
+        path,
+        params=params,
+        stream_to=stream_to,
+        default_name=default_name,
+        not_found=not_found,
+    )
+    return _download_result(response, stream_to)
+
+
+def model_call(
+    client: Any,
+    model: Type[Any],
+    method: str,
+    path: str,
+    *,
+    params: Optional[Dict[str, Any]] = None,
+    json: Any = None,
+    not_found: Type[NotFound] = NotFound,
+) -> Op:
+    """A plain call whose JSON body is parsed into ``model``."""
+    response = yield from request(
+        client, method, path, params=params, json=json, not_found=not_found
+    )
+    return bind(model.model_validate(response.json()), client)
+
+
 def _download_result(response: httpx.Response, stream_to: Optional[Path]) -> Any:
     if stream_to is None:
         return response.content
@@ -285,19 +326,32 @@ def page_of(
     params: Dict[str, Any],
     *,
     method: str = "GET",
+    page_cls: Optional[Type[Any]] = None,
+    not_found: Type[NotFound] = NotFound,
 ) -> Op:
-    """Fetch one page and wire its ``.all()`` to fetch the next."""
-    response = yield from request(client, method, path, params=params)
+    """Fetch one page and wire its ``.all()`` to fetch the next. ``page_cls`` is a
+    :class:`Page` subclass for lists that carry more than ``items``/``next_cursor``/
+    ``total``; the default is ``Page[model]``."""
+    response = yield from request(client, method, path, params=params, not_found=not_found)
     body = response.json()
     if isinstance(body, builtins.list):  # a bare list is one complete page
         body = {"items": body}
-    page = Page[model].model_validate(body)  # type: ignore[valid-type]
+    cls = page_cls or Page[model]  # type: ignore[valid-type]
+    page = cls.model_validate(body)
     for item in page.items:
         bind(item, client)
     bind(page, client)
 
     def fetch(cursor: str) -> Op:
-        return page_of(client, model, path, {**params, "cursor": cursor}, method=method)
+        return page_of(
+            client,
+            model,
+            path,
+            {**params, "cursor": cursor},
+            method=method,
+            page_cls=page_cls,
+            not_found=not_found,
+        )
 
     page._fetch = fetch
     return page

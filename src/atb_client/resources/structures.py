@@ -1,13 +1,16 @@
-"""``client.structures`` — structure search and RMSD alignment."""
+"""``client.structures`` — structure search and RMSD alignment.
+
+``rmsd`` is served (WP2). ``search`` (``POST /structures/search``) is not yet (WP3);
+its request shape follows the plan (§6).
+"""
 
 from __future__ import annotations
 
-from typing import Any, Dict, Iterable, Optional, Union
+from typing import Any, Dict, Iterable, List, Optional, Union
 
 from .. import _ops
 from .._base import Resource, operation
-from .._transport import json_of, request
-from ..models import StructureMatch
+from ..models import RMSDResult, StructureMatch
 
 DEFAULT_SEARCH_TIMEOUT = 600.0
 
@@ -62,19 +65,24 @@ class Structures(Resource):
         self,
         *,
         molids: Optional[Iterable[int]] = None,
-        reference: Optional[str] = None,
         structures: Optional[Iterable[str]] = None,
-        format: str = "pdb",
-        matrix: bool = False,
     ):
-        """``POST /structures/rmsd`` — align two structures (or molids), or with
-        ``matrix=True`` all against all. Returns the server's JSON."""
-        body: Dict[str, Any] = {"format": format, "matrix": matrix}
+        """``POST /structures/rmsd`` → :class:`RMSDResult`.
+
+        Aligns 2 to 10 inputs in all: ``molids`` (each molecule's optimised all-atom
+        structure, else its normalised submitted one) first, then ``structures`` (PDB
+        texts), and returns the pairwise RMSD matrix in nm; ``.rmsd`` is the
+        two-input answer. A pair whose molecular graphs differ has ``None``. A merged
+        duplicate molid is resolved to its canonical molecule by the server."""
+        body: Dict[str, List[Any]] = {}
         if molids is not None:
             body["molids"] = [int(m) for m in molids]
-        if reference is not None:
-            body["reference"] = reference
         if structures is not None:
             body["structures"] = list(structures)
-        response = yield from request(self._client, "POST", "structures/rmsd", json=body)
-        return json_of(response)
+        if not 2 <= sum(len(v) for v in body.values()) <= 10:
+            raise ValueError("give between 2 and 10 molids and structures in total")
+        return (
+            yield from _ops.model_call(
+                self._client, RMSDResult, "POST", "structures/rmsd", json=body
+            )
+        )

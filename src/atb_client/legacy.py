@@ -118,8 +118,8 @@ class Molecules(_Namespace):
         match_partial = kwargs.pop("match_partial", None)
         for dropped in ("api_format", "api_token"):
             kwargs.pop(dropped, None)
-        if match_partial and "common_name" in kwargs:
-            kwargs["q"] = kwargs.pop("common_name")
+        if match_partial:
+            kwargs["match"] = "partial"
         molecules = list(self._v1.molecules.search(**kwargs).all())
         if return_type == "molids":
             return [m.molid for m in molecules]
@@ -214,21 +214,25 @@ def _molids_list(value: Any) -> List[int]:
 
 
 class RMSD(_Namespace):
-    def _call(self, matrix: bool, kwargs: Dict[str, Any]) -> Any:
+    """v1 answers every RMSD call with the whole matrix; ``align`` and ``matrix``
+    both return :class:`~atb_client.models.RMSDResult` fields as a dict (``rmsd`` is
+    the two-structure value, ``rmsd_matrix`` the rest)."""
+
+    def _call(self, kwargs: Dict[str, Any]) -> Any:
         if "molids" in kwargs:
-            return self._v1.structures.rmsd(molids=_molids_list(kwargs["molids"]), matrix=matrix)
-        if "reference_pdb" in kwargs and "pdb_0" in kwargs:
+            result = self._v1.structures.rmsd(molids=_molids_list(kwargs["molids"]))
+        elif "reference_pdb" in kwargs and "pdb_0" in kwargs:
             others = [kwargs[k] for k in sorted(kwargs) if k.startswith("pdb_")]
-            return self._v1.structures.rmsd(
-                reference=kwargs["reference_pdb"], structures=others, matrix=matrix
-            )
-        raise ValueError("provide molids= or reference_pdb= and pdb_0=")
+            result = self._v1.structures.rmsd(structures=[kwargs["reference_pdb"], *others])
+        else:
+            raise ValueError("provide molids= or reference_pdb= and pdb_0=")
+        return result.model_dump(mode="json")
 
     def align(self, **kwargs: Any) -> Any:
-        return self._call(False, kwargs)
+        return self._call(kwargs)
 
     def matrix(self, **kwargs: Any) -> Any:
-        return self._call(True, kwargs)
+        return self._call(kwargs)
 
 
 class API:

@@ -135,6 +135,10 @@ def test_same_surface():
         "forcefields",
         "jobs",
         "me",
+        "parameters",
+        "dihedrals",
+        "tautomers",
+        "statistics",
         "admin",
         "pipeline",
     ):

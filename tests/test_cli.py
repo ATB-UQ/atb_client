@@ -145,13 +145,23 @@ def test_ifp_to_stdout(env, capsys):
 
 def test_keys_and_usage(env, capsys):
     route = env.post("/me/keys").respond(
-        201, json={"id": 7, "name": "nb", "scopes": ["read"], "key": "atb_new_secret"}
+        201,
+        json={
+            "id": 7,
+            "prefix": "atb_ab12cd34",
+            "principal": "user",
+            "name": "nb",
+            "format": "v1",
+            "scopes": ["read"],
+            "expires_at": "2026-12-22T00:00:00Z",
+            "key": "atb_new_secret",
+        },
     )
     assert main(["keys", "create", "--name", "nb", "--scopes", "read", "--expires", "90d"]) == 0
     assert json.loads(route.calls.last.request.content) == {
         "name": "nb",
         "scopes": ["read"],
-        "expires": "90d",
+        "expires_in_days": 90,
     }
     assert out_json(capsys)["key"] == "atb_new_secret"
     env.get("/me/keys").respond(200, json={"items": [{"id": 7, "scopes": ["read"]}]})
@@ -160,9 +170,24 @@ def test_keys_and_usage(env, capsys):
     env.delete("/me/keys/7").respond(204)
     assert main(["keys", "revoke", "7"]) == 0
     capsys.readouterr()
-    env.get("/me/usage").respond(200, json={"daily_limit": 2000, "daily_used": 12})
+    env.get("/me/usage").respond(
+        200,
+        json={
+            "day": "2026-09-23",
+            "key_id": 7,
+            "weight": 12,
+            "daily_limit": 2000,
+            "daily_remaining": 1988,
+            "burst_per_min": 60,
+            "keys": [{"key_id": 7, "prefix": "atb_ab12cd34", "weight": 12}],
+        },
+    )
     assert main(["usage"]) == 0
-    assert out_json(capsys)["daily_used"] == 12
+    assert out_json(capsys)["daily_remaining"] == 1988
+
+
+def test_keys_create_rejects_an_unreadable_expiry(env, capsys):
+    assert main(["keys", "create", "--expires", "2027-01-01T00:00:00Z"]) == 2
 
 
 def _run_cli(*args, env_extra=None):

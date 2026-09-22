@@ -1,14 +1,38 @@
-"""``client.molecules`` — search, get, submit, wait, changes."""
+"""``client.molecules`` — search, get, status, the read-only sub-resources, changes;
+and submission, batch, wait.
+
+Served by the WP2 server: ``get``, ``status``, ``search``, ``changes``, ``topologies``,
+``qm``, ``validation``, ``solvation``, ``parameters``, ``tautomers``,
+``conformations``. Not yet (WP3): ``submit``, ``submit_batch``, ``update``,
+``request_deletion``, ``flag``; their request shapes follow the plan (§6) and will
+be checked against the server when it publishes them.
+
+A merged duplicate molid is redirected by the server (``301``) to its canonical
+molecule and the client follows it, so ``get(20)`` can return molecule 21.
+"""
 
 from __future__ import annotations
 
-from typing import Any, Dict, Iterable, List, Optional, Sequence
+from datetime import datetime
+from typing import Any, Dict, Iterable, List, Optional, Sequence, Union
 
 from .. import _ops
 from .._base import Resource, operation, stream_operation
 from .._transport import Emit, Sleep, json_of, request
 from ..exceptions import MoleculeNotFound, Timeout
-from ..models import BatchResult, Change, Molecule, MoleculeStatus
+from ..models import (
+    BatchResult,
+    BondedParameters,
+    Change,
+    Conformations,
+    Molecule,
+    MoleculeStatus,
+    QMSummary,
+    Solvation,
+    Tautomers,
+    Topologies,
+    Validation,
+)
 
 #: A submission's duplicate search is budgeted at ~105 s server-side; give it room.
 DEFAULT_SUBMIT_TIMEOUT = 600.0
@@ -43,24 +67,34 @@ class Molecules(Resource):
         fields: Optional[Sequence[str]] = None,
         **filters: Any,
     ):
-        """``GET /molecules`` → ``Page[Molecule]``.
+        """``GET /molecules`` → ``Page[Molecule]``, in molid order.
 
-        Filters are the server's (``inchi_key``, ``inchi``, ``smiles``, ``common_name``,
-        ``formula``, ``iupac``, ``chembl_id``, ``pdb_hetid``, ``qm_level``,
-        ``max_qm_level``, ``min_atoms``, ``max_atoms``, ``is_finished``, ``has_ti``,
-        ``tag``, ``q``, ``owner``, ``ids``, ``public``, ``submitted_after``). Lists are
-        sent comma-separated, booleans as ``true``/``false``. Iterate the page for its
-        items; ``.all()`` walks every page.
+        Filters are the server's: text ``inchi_key`` (standard), ``inchi``, ``smiles``,
+        ``common_name``, ``formula``, ``iupac``, ``chembl_id``, ``pdb_hetid``, ``rnme``,
+        ``moltype``, ``user_label`` (exact, or substring with ``match="partial"``);
+        ``q`` (free text, always partial); lists ``ids``, ``qm_level``,
+        ``max_qm_level``, ``curation_trust``; ``min_atoms``, ``max_atoms``; booleans
+        ``is_finished``, ``has_error``, ``has_ti``, ``public``; ``tag``; ``owner``
+        (``"me"``, or a user id for admin/service keys); ``submitted_after`` (a
+        datetime). Lists are sent comma-separated, booleans as ``true``/``false``.
+        ``fields`` narrows each item to the named summary fields (``molid`` always
+        included). A partial match costs 10 quota units rather than 1. ``limit`` is at
+        most 200 (1000 for admin and service keys). ``total`` is set only when the
+        whole result is on the first page. Iterate the page for its items; ``.all()``
+        walks every page.
         """
         params: Dict[str, Any] = dict(filters, limit=limit, cursor=cursor, fields=fields)
         return (yield from _ops.page_of(self._client, Molecule, "molecules", params))
 
     @operation
-    def changes(self, since: Optional[str] = None, *, limit: Optional[int] = None):
-        """``GET /molecules/changes?since=`` → ``Page[Change]`` (costs no quota).
+    def changes(self, since: Optional[Union[str, datetime]] = None, *, limit: Optional[int] = None):
+        """``GET /molecules/changes?since=`` → ``Page[Change]``, oldest change first
+        (costs no quota).
 
-        Keep ``page.next_cursor`` (or the last page's, after ``.all()``) as the next
-        ``since``."""
+        ``since`` is a ``next_cursor`` from a previous call or a datetime; the default
+        is the last 24 hours. The server returns a ``next_cursor`` on every page, empty
+        ones included: keep the last one you saw as the next ``since``. ``.all()``
+        stops at the first empty page."""
         params = {"since": since, "limit": limit}
         return (yield from _ops.page_of(self._client, Change, "molecules/changes", params))
 
@@ -216,47 +250,60 @@ class Molecules(Resource):
         )
         return json_of(response)
 
-    def _sub(self, molid: int, what: str, params: Optional[Dict[str, Any]] = None):
-        response = yield from request(
-            self._client,
-            "GET",
-            f"molecules/{int(molid)}/{what}",
-            params=params,
-            not_found=MoleculeNotFound,
+    def _sub(self, model: Any, molid: int, what: str, params: Optional[Dict[str, Any]] = None):
+        return (
+            yield from _ops.model_call(
+                self._client,
+                model,
+                "GET",
+                f"molecules/{int(molid)}/{what}",
+                params=params,
+                not_found=MoleculeNotFound,
+            )
         )
-        return json_of(response)
 
     @operation
     def topologies(self, molid: int):
-        """``GET /molecules/{molid}/topologies`` — topology hashes with generation dates."""
-        return (yield from self._sub(molid, "topologies"))
+        """``GET /molecules/{molid}/topologies`` → :class:`Topologies`: every stored
+        topology version per force field, newest first."""
+        return (yield from self._sub(Topologies, molid, "topologies"))
 
     @operation
-    def qm(self, molid: int, *, level: Optional[int] = None):
-        """``GET /molecules/{molid}/qm`` — QM summary per level."""
-        return (yield from self._sub(molid, "qm", {"level": level}))
+    def qm(self, molid: int, *, level: Optional[Union[int, str]] = None):
+        """``GET /molecules/{molid}/qm`` → :class:`QMSummary`: which QM result each
+        level's topology was built from. ``level`` is ``0``-``2`` or ``"qm0"``-``"qm2"``."""
+        if isinstance(level, int):
+            level = f"qm{level}"
+        return (yield from self._sub(QMSummary, molid, "qm", {"level": level}))
 
     @operation
     def validation(self, molid: int):
-        """``GET /molecules/{molid}/validation`` — EMinVac RMSD and check-top result."""
-        return (yield from self._sub(molid, "validation"))
+        """``GET /molecules/{molid}/validation`` → :class:`Validation`: the vacuum
+        energy-minimisation RMSD (nm), or why there is none."""
+        return (yield from self._sub(Validation, molid, "validation"))
 
     @operation
     def solvation(self, molid: int):
-        """``GET /molecules/{molid}/solvation`` — TI and experimental free energies."""
-        return (yield from self._sub(molid, "solvation"))
+        """``GET /molecules/{molid}/solvation`` → :class:`Solvation`: TI and experimental
+        solvation free energies (kJ/mol)."""
+        return (yield from self._sub(Solvation, molid, "solvation"))
 
     @operation
-    def parameters(self, molid: int, *, hash: Optional[str] = None):
-        """``GET /molecules/{molid}/parameters`` — the bonded-assignment record."""
-        return (yield from self._sub(molid, "parameters", {"hash": hash}))
+    def parameters(self, molid: int, *, ff: Optional[str] = None, hash: Optional[str] = None):
+        """``GET /molecules/{molid}/parameters`` → :class:`BondedParameters`: the
+        bonded-assignment record of the current (or ``hash``-pinned) topology for force
+        field ``ff`` (default: the server's)."""
+        return (
+            yield from self._sub(BondedParameters, molid, "parameters", {"ff": ff, "hash": hash})
+        )
 
     @operation
     def tautomers(self, molid: int):
-        """``GET /molecules/{molid}/tautomers``."""
-        return (yield from self._sub(molid, "tautomers"))
+        """``GET /molecules/{molid}/tautomers`` → :class:`Tautomers`: the visible
+        members of the molecule's family, with energies (kJ/mol)."""
+        return (yield from self._sub(Tautomers, molid, "tautomers"))
 
     @operation
     def conformations(self, molid: int):
-        """``GET /molecules/{molid}/conformations``."""
-        return (yield from self._sub(molid, "conformations"))
+        """``GET /molecules/{molid}/conformations`` → :class:`Conformations`."""
+        return (yield from self._sub(Conformations, molid, "conformations"))

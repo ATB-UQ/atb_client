@@ -7,6 +7,7 @@ from typing import Any, Optional, Union
 
 import httpx
 
+from ._base import operation
 from ._config import resolve
 from ._transport import AsyncDriver, RetryPolicy, SyncDriver
 from ._version import __version__
@@ -18,6 +19,7 @@ from .resources.jobs import Jobs
 from .resources.me import Me
 from .resources.molecules import Molecules
 from .resources.pipeline import Pipeline
+from .resources.reference import Dihedrals, Parameters, SiteStatistics, TautomerGroups
 from .resources.structures import Structures
 
 TimeoutTypes = Union[None, float, int, httpx.Timeout]
@@ -80,8 +82,28 @@ class _ClientBase:
         self.forcefields = Forcefields(self)
         self.jobs = Jobs(self)
         self.me = Me(self)
+        self.parameters = Parameters(self)
+        self.dihedrals = Dihedrals(self)
+        self.tautomers = TautomerGroups(self)
+        self.statistics = SiteStatistics(self)
         self.admin = Admin(self)
         self.pipeline = Pipeline(self)
+
+    @operation
+    def health(self):
+        """``GET /health`` → :class:`~atb_client.models.Health`. Needs no key; a
+        ``503`` (the service is degraded) still returns the body rather than raising."""
+        from ._transport import request
+        from .exceptions import ServiceUnavailable
+        from .models import Health
+
+        try:
+            response = yield from request(self, "GET", "health")
+        except ServiceUnavailable as exc:
+            if exc.response is None:
+                raise
+            response = exc.response
+        return Health.model_validate(response.json())
 
     @property
     def _client(self) -> Any:  # so client-level helpers can use @operation too
