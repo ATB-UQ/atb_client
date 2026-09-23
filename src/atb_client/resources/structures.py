@@ -68,6 +68,7 @@ class Structures(Resource):
         *,
         molids: Optional[Iterable[int]] = None,
         structures: Optional[Iterable[str]] = None,
+        timeout: Optional[float] = DEFAULT_SEARCH_TIMEOUT,
     ):
         """``POST /structures/rmsd`` → :class:`RMSDResult`.
 
@@ -75,7 +76,10 @@ class Structures(Resource):
         structure, else its normalised submitted one) first, then ``structures`` (PDB
         texts), and returns the pairwise RMSD matrix in nm; ``.rmsd`` is the
         two-input answer. A pair whose molecular graphs differ has ``None``. A merged
-        duplicate molid is resolved to its canonical molecule by the server."""
+        duplicate molid is resolved to its canonical molecule by the server.
+
+        Two small structures are compared inline; more, or larger ones, run as a
+        server job, which this call waits for up to ``timeout`` seconds."""
         body: Dict[str, List[Any]] = {}
         if molids is not None:
             body["molids"] = [int(m) for m in molids]
@@ -83,8 +87,12 @@ class Structures(Resource):
             body["structures"] = list(structures)
         if not 2 <= sum(len(v) for v in body.values()) <= 10:
             raise ValueError("give between 2 and 10 molids and structures in total")
-        return (
-            yield from _ops.model_call(
-                self._client, RMSDResult, "POST", "structures/rmsd", json=body
-            )
+        kind, value = yield from _ops.call_with_wait(
+            self._client,
+            "POST",
+            "structures/rmsd",
+            deadline=_ops.Deadline(timeout),
+            json=body,
         )
+        result = value.json() if kind == "response" else value.result_
+        return RMSDResult.model_validate(result)

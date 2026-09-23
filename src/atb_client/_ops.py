@@ -387,12 +387,20 @@ def json_call(
     json: Any = None,
     content: Any = None,
     headers: Optional[Dict[str, str]] = None,
+    retry: bool = True,
 ) -> Op:
     """A plain synchronous call whose JSON body (or ``None``) is the result."""
     if isinstance(json, dict):
         json = {k: v for k, v in json.items() if v is not None}
     response = yield from request(
-        client, method, path, params=params, json=json, content=content, headers=headers
+        client,
+        method,
+        path,
+        params=params,
+        json=json,
+        content=content,
+        headers=headers,
+        retry=retry,
     )
     try:
         return json_of(response)

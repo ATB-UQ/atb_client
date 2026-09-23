@@ -17,7 +17,11 @@ simulation engine wants, and search what already exists — from a script, with 
 > keys — matches the server's published OpenAPI document (work packages 0–2) and is checked
 > against it by `tests/test_contract.py`. Submission, batches, bundles, structure search, jobs,
 > the admin and pipeline surfaces are written to the API design and are not served yet; see
-> [What the server serves today](#what-the-server-serves-today).
+> [What the server serves today](#what-the-server-serves-today). `pipeline.*` (service keys
+> only) matches the WP6 routes: `qm.local_job`, `qm.gamess_job`, `qm.offer`, `qm.accept`
+> (never retried), `qm.release`, `qm.sync`, `qm.local_result`, `qm.local_failure`, `qm.logs`,
+> and `molecules.remap_compound`, `update_compound`, `recompute_cpu_time`,
+> `generate_topology`, `write_lgf`, `put_validation`, `notify`.
 
 ## Install
 

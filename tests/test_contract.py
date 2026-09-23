@@ -405,6 +405,79 @@ IMPLEMENTED: Dict[str, Tuple[Call, str]] = {
         lambda c: c.admin.deletion_requests(),
         "admin_deletion_requests_list",
     ),
+    # WP6: /pipeline/* (service keys only), reshaped to the callers (dossier §2.6).
+    "pipeline.qm.local_job": (
+        lambda c: c.pipeline.qm.local_job(21, "GFN2_xTB", rerun=True),
+        "pipeline_qm_local_jobs_create",
+    ),
+    "pipeline.qm.gamess_job": (
+        lambda c: c.pipeline.qm.gamess_job(
+            21, "wB97X_631Gd_SMD_water", starting_from="HF", rerun=True
+        ),
+        "pipeline_qm_jobs_create",
+    ),
+    "pipeline.qm.offer": (
+        lambda c: c.pipeline.qm.offer(
+            group=2, n=3, qm_levels=[1], min_atoms=1, max_atoms=50, sort="atoms"
+        ),
+        "pipeline_qm_jobs_offer",
+    ),
+    "pipeline.qm.accept": (
+        lambda c: c.pipeline.qm.accept([21, 22], runner_id="r" * 32),
+        "pipeline_qm_claims_accept",
+    ),
+    "pipeline.qm.release": (
+        lambda c: c.pipeline.qm.release([21]),
+        "pipeline_qm_claims_release",
+    ),
+    "pipeline.qm.sync": (
+        lambda c: c.pipeline.qm.sync(runner_id="r" * 32, running_molids=[21], failed_molids=[22]),
+        "pipeline_qm_claims_sync",
+    ),
+    "pipeline.qm.local_result": (
+        lambda c: c.pipeline.qm.local_result(
+            21, "GFN2_xTB", {"optimized": True}, geometry_pdb="PDB"
+        ),
+        "pipeline_qm_local_results_create",
+    ),
+    "pipeline.qm.local_failure": (
+        lambda c: c.pipeline.qm.local_failure(21, "GFN2_xTB", "ERROR", reason="x"),
+        "pipeline_qm_local_failures_create",
+    ),
+    "pipeline.qm.logs": (
+        lambda c: c.pipeline.qm.logs([(21, "wB97X_631Gd_SMD_water", "log")]),
+        "pipeline_qm_logs_create",
+    ),
+    "pipeline.molecules.remap_compound": (
+        lambda c: c.pipeline.molecules.remap_compound(21, pdb="PDB"),
+        "pipeline_molecules_compound_remap",
+    ),
+    "pipeline.molecules.update_compound": (
+        lambda c: c.pipeline.molecules.update_compound(21, common_name="aspirin"),
+        "pipeline_molecules_compound_update",
+    ),
+    "pipeline.molecules.recompute_cpu_time": (
+        lambda c: c.pipeline.molecules.recompute_cpu_time(21),
+        "pipeline_molecules_cpu_time_recompute",
+    ),
+    "pipeline.molecules.generate_topology": (
+        lambda c: c.pipeline.molecules.generate_topology(21),
+        "pipeline_molecules_topology_generate",
+    ),
+    "pipeline.molecules.write_lgf": (
+        lambda c: c.pipeline.molecules.write_lgf(21),
+        "pipeline_molecules_lgf_write",
+    ),
+    "pipeline.molecules.put_validation": (
+        lambda c: c.pipeline.molecules.put_validation(
+            21, "EMinVac", files={"EMinVac.pdb": "A"}, row={"value": "0.01"}
+        ),
+        "pipeline_molecules_validation_put",
+    ),
+    "pipeline.molecules.notify": (
+        lambda c: c.pipeline.molecules.notify(21, 2, email="a@b.org"),
+        "pipeline_molecules_notify",
+    ),
 }
 
 #: Query parameters the client sends that an implemented operation does not declare
@@ -414,73 +487,12 @@ EXPECTED_EXTRA_PARAMS: Dict[str, Set[str]] = {}
 
 #: Client calls aimed at routes the server has not built yet (WP3, WP5, WP6):
 #: id -> (call, "METHOD /path/template"). Their shapes follow the plan (§6).
-UNBUILT: Dict[str, Tuple[Call, str]] = {
-    "pipeline.qm.claim": (
-        lambda c: c.pipeline.qm.claim(level=1, runner_id="r"),
-        "POST /pipeline/qm/claims",
-    ),
-    "pipeline.qm.claims": (
-        lambda c: c.pipeline.qm.claims(runner_id="r"),
-        "GET /pipeline/qm/claims",
-    ),
-    "pipeline.qm.release": (
-        lambda c: c.pipeline.qm.release(21),
-        "DELETE /pipeline/qm/claims/{molid}",
-    ),
-    "pipeline.qm.sync": (
-        lambda c: c.pipeline.qm.sync(runner_id="r"),
-        "POST /pipeline/qm/claims:sync",
-    ),
-    "pipeline.qm.results": (
-        lambda c: c.pipeline.qm.results(molid=21, level=1, method="m", log="x"),
-        "POST /pipeline/qm/results",
-    ),
-    "pipeline.qm.failures": (
-        lambda c: c.pipeline.qm.failures(molid=21, level=1, status="ERROR"),
-        "POST /pipeline/qm/failures",
-    ),
-    "pipeline.molecules.update": (
-        lambda c: c.pipeline.molecules.update(21, cpu_time=1),
-        "PATCH /pipeline/molecules/{molid}",
-    ),
-    "pipeline.molecules.update_compound": (
-        lambda c: c.pipeline.molecules.update_compound(21, smiles="C"),
-        "PATCH /pipeline/molecules/{molid}/compound",
-    ),
-    "pipeline.molecules.put_lgf": (
-        lambda c: c.pipeline.molecules.put_lgf(21, "lgf"),
-        "PUT /pipeline/molecules/{molid}/lgf",
-    ),
-    "pipeline.molecules.put_validation": (
-        lambda c: c.pipeline.molecules.put_validation(21, "EMinVac", value=0.1),
-        "PUT /pipeline/molecules/{molid}/validation/{kind}",
-    ),
-    "pipeline.molecules.notify": (
-        lambda c: c.pipeline.molecules.notify(21),
-        "POST /pipeline/molecules/{molid}/notify",
-    ),
-    "pipeline.callback": (
-        lambda c: c.pipeline.callback(21, "finished"),
-        "POST /pipeline/callbacks",
-    ),
-}
+UNBUILT: Dict[str, Tuple[Call, str]] = {}
 
 #: The routes the client calls that the server does not have. Checked to be exactly
-#: the routes UNBUILT reaches, and each to be absent from the schema.
-EXPECTED_MISSING: Set[str] = {
-    "POST /pipeline/qm/claims",
-    "GET /pipeline/qm/claims",
-    "DELETE /pipeline/qm/claims/{molid}",
-    "POST /pipeline/qm/claims:sync",
-    "POST /pipeline/qm/results",
-    "POST /pipeline/qm/failures",
-    "PATCH /pipeline/molecules/{molid}",
-    "PATCH /pipeline/molecules/{molid}/compound",
-    "PUT /pipeline/molecules/{molid}/lgf",
-    "PUT /pipeline/molecules/{molid}/validation/{kind}",
-    "POST /pipeline/molecules/{molid}/notify",
-    "POST /pipeline/callbacks",
-}
+#: the routes UNBUILT reaches, and each to be absent from the schema. Empty since WP6
+#: built /pipeline/*.
+EXPECTED_MISSING: Set[str] = set()
 
 #: Public client methods that are not one route: they compose the ones above.
 COMPOSITE = {"molecules.wait_all"}
@@ -672,8 +684,6 @@ NOT_RESPONSES = {
     "KeyCreate",  # request bodies: the resource methods' keyword arguments
     "QuotaRequest",
     "RMSDRequest",
-    "HTTPValidationError",  # FastAPI's default 422, which the server replaces
-    "ValidationError",
     "MoleculeLinks",  # Molecule.links is a dict of paths
     "ForcefieldLinks",  # Forcefield.links likewise
     # WP3 request bodies (plan §6): the resource methods' keyword arguments.
@@ -696,6 +706,40 @@ NOT_RESPONSES = {
     "Regenerate",
     "ScanRequest",
     "QuotaApproval",
+    # WP6 /pipeline/*: request bodies are the resource methods' keyword arguments, and
+    # the responses are handed back as plain dicts (their callers are adapters that pass
+    # v0.1-shaped dicts on), so none has a hand-written model.
+    "LocalJobRequest",
+    "LocalJob",
+    "GamessJobRequest",
+    "GamessJob",
+    "OfferRequest",
+    "OfferedJobs",
+    "ClaimAccept",
+    "ClaimRelease",
+    "Claimed",
+    "ClaimSync",
+    "SyncReport",
+    "LocalResult",
+    "LocalResultVerdict",
+    "LocalFailure",
+    "LocalFailureRecorded",
+    "LogItem",
+    "LogBatch",
+    "LogVerdict",
+    "LogsAccepted",
+    "CompoundRemap",
+    "CompoundRemapped",
+    "CompoundFields",
+    "CompoundUpdated",
+    "CpuTime",
+    "LgfWritten",
+    "ValidationRow",
+    "ValidationPut",
+    "FileWritten",
+    "ValidationStored",
+    "Notify",
+    "Notified",
 }
 
 

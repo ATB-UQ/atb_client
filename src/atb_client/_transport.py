@@ -128,13 +128,24 @@ def request(
     stream_to: Optional[Path] = None,
     default_name: Optional[str] = None,
     not_found: Type[NotFound] = NotFound,
+    retry: bool = True,
 ) -> Op:
     """Send one API request with retries; return the ``httpx.Response`` (status < 400).
 
     Error responses raise the mapped :mod:`atb_client.exceptions` class. When the
     request streamed to a file, ``response.extensions['atb_written']`` is the path.
+    ``retry=False`` sends it once whatever the policy: for a call that is not
+    idempotent (``pipeline.qm.accept``), where a retry after a lost answer would be
+    refused for the success it cannot see.
     """
     policy: RetryPolicy = client._retry
+    if not retry:
+        policy = RetryPolicy(
+            max_attempts=1,
+            backoff_base=policy.backoff_base,
+            backoff_max=policy.backoff_max,
+            max_retry_after=policy.max_retry_after,
+        )
     url: Union[str, httpx.URL] = f"{client.base_url}/{path.lstrip('/')}"
     cleaned = _clean_params(params)
     strip_auth = False

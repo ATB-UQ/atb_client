@@ -14,9 +14,21 @@ class Account(BaseModel):
         extra='allow',
     )
     id: Annotated[int, Field(title='Id')]
+    """
+    Account id.
+    """
     email: Annotated[str, Field(title='Email')]
+    """
+    Login email.
+    """
     user_class: Annotated[int, Field(title='User Class')]
+    """
+    2 academic, 3 commercial, 4 partner, 5 administrator, 6 partner with QM logs.
+    """
     group_id: Annotated[Optional[int], Field(title='Group Id')] = None
+    """
+    Account group.
+    """
 
 
 class ExpiresInDays(RootModel[int]):
@@ -28,10 +40,16 @@ class ExpiresInDays(RootModel[int]):
 
 class BurstPerMin(RootModel[int]):
     root: Annotated[int, Field(ge=1, le=100000, title='Burst Per Min')]
+    """
+    Requests per minute; null: the class default.
+    """
 
 
 class DailyLimit(RootModel[int]):
     root: Annotated[int, Field(ge=1, le=10000000, title='Daily Limit')]
+    """
+    Weighted requests per UTC day; null: the class default.
+    """
 
 
 class AdminKeyCreate(BaseModel):
@@ -53,7 +71,13 @@ class AdminKeyCreate(BaseModel):
     Omitted: the calling key's own expiry, if it has one. Never later than it.
     """
     burst_per_min: Annotated[Optional[BurstPerMin], Field(title='Burst Per Min')] = None
+    """
+    Requests per minute; null: the class default.
+    """
     daily_limit: Annotated[Optional[DailyLimit], Field(title='Daily Limit')] = None
+    """
+    Weighted requests per UTC day; null: the class default.
+    """
 
 
 class AdminUser(BaseModel):
@@ -61,12 +85,33 @@ class AdminUser(BaseModel):
         extra='allow',
     )
     id: Annotated[int, Field(title='Id')]
+    """
+    The account id.
+    """
     email: Annotated[str, Field(title='Email')]
+    """
+    The login email.
+    """
     fullname: Annotated[Optional[str], Field(title='Fullname')] = None
+    """
+    Name as registered.
+    """
     institute: Annotated[Optional[str], Field(title='Institute')] = None
+    """
+    Institute as registered.
+    """
     user_class: Annotated[int, Field(title='User Class')]
+    """
+    1 pending commercial, 2 academic, 3 commercial, 4 partner, 5 administrator, 6 partner with QM logs.
+    """
     group_id: Annotated[Optional[int], Field(title='Group Id')] = None
+    """
+    The account's group; 1 is the public (academic) group.
+    """
     expiry: Annotated[Optional[date], Field(title='Expiry')] = None
+    """
+    Last day the account is active; null: no expiry.
+    """
 
 
 class AdminUserPage(BaseModel):
@@ -74,7 +119,13 @@ class AdminUserPage(BaseModel):
         extra='allow',
     )
     items: Annotated[List[AdminUser], Field(title='Items')]
+    """
+    Accounts, by id.
+    """
     next_cursor: Annotated[Optional[str], Field(title='Next Cursor')] = None
+    """
+    Pass as `cursor` for the next page; null on the last.
+    """
 
 
 class BurstPerMin1(RootModel[int]):
@@ -100,9 +151,12 @@ class AdminUserUpdate(BaseModel):
     1, 2, 3, 4 or 6. Class 5 is reached only through root.
     """
     group_id: Annotated[Optional[int], Field(title='Group Id')] = None
+    """
+    An existing group id; 1 (public) goes with class 2 only.
+    """
     expiry: Annotated[Optional[date], Field(title='Expiry')] = None
     """
-    Send null to clear it.
+    Last active day. Send null to clear it.
     """
     burst_per_min: Annotated[Optional[BurstPerMin1], Field(title='Burst Per Min')] = (
         None
@@ -126,8 +180,17 @@ class ArchetypeDetail(BaseModel):
         extra='allow',
     )
     id: Annotated[str, Field(title='Id')]
+    """
+    `<molid>_<dihedral_run_id>`.
+    """
     molid: Annotated[int, Field(title='Molid')]
+    """
+    The scanned molecule.
+    """
     run_id: Annotated[int, Field(title='Run Id')]
+    """
+    The dihedral scan run.
+    """
     metadata: Annotated[Dict[str, Any], Field(title='Metadata')]
     """
     `arch_info/metadata.yml`: the fit record.
@@ -137,18 +200,45 @@ class ArchetypeDetail(BaseModel):
     The subject dihedral, its degrees of freedom, anchor atoms, atoms.
     """
     flags: Annotated[List[str], Field(title='Flags')]
+    """
+    Quality flags.
+    """
     flag_descriptions: Annotated[List[Dict[str, Any]], Field(title='Flag Descriptions')]
     """
     `{flag, description, excludes}` per flag.
     """
     fit_metrics: Annotated[Dict[str, Any], Field(title='Fit Metrics')]
+    """
+    Fit quality numbers (RMSDs in `rmsd_units`).
+    """
     rmsd_units: Annotated[str, Field(title='Rmsd Units')]
+    """
+    Units of the RMSDs (kJ/mol).
+    """
     e_window_kj: Annotated[float, Field(title='E Window Kj')]
+    """
+    Energy window the fit was weighted to (kJ/mol).
+    """
     fit_failed: Annotated[bool, Field(title='Fit Failed')]
+    """
+    The fit failed.
+    """
     auto_exclude: Annotated[bool, Field(title='Auto Exclude')]
+    """
+    Excluded from the IFP by its flags.
+    """
     manual_include: Annotated[bool, Field(title='Manual Include')]
+    """
+    Included by hand despite its flags.
+    """
     in_ifp: Annotated[bool, Field(title='In Ifp')]
+    """
+    Its terms are in the current IFP.
+    """
     term_ids: Annotated[List, Field(title='Term Ids')]
+    """
+    IFP dihedral type codes it contributed.
+    """
     ifp_terms: Annotated[List[Dict[str, Any]], Field(title='Ifp Terms')]
     """
     The IFP dihedral type codes it contributed, with parameters.
@@ -168,27 +258,93 @@ class ArchetypeRow(BaseModel):
     `<molid>_<dihedral_run_id>`.
     """
     molid: Annotated[int, Field(title='Molid')]
+    """
+    The scanned molecule.
+    """
     run_id: Annotated[int, Field(title='Run Id')]
+    """
+    The dihedral scan run.
+    """
     rnme: Annotated[Optional[str], Field(title='Rnme')] = None
+    """
+    Residue name of the molecule.
+    """
     n_atoms: Annotated[Optional[int], Field(title='N Atoms')] = None
+    """
+    Atoms in the molecule.
+    """
     dihedral_names: Annotated[Optional[List[str]], Field(title='Dihedral Names')] = []
+    """
+    Atom names of the scanned dihedral.
+    """
     dof_elements: Annotated[Optional[str], Field(title='Dof Elements')] = None
+    """
+    Elements of the dihedral atoms.
+    """
     fit: Annotated[Any, Field(title='Fit')] = None
+    """
+    The fitted function, as the index records it.
+    """
     n_terms: Annotated[Optional[int], Field(title='N Terms')] = None
+    """
+    Torsion terms in the fit.
+    """
     rmsd: Annotated[Optional[float], Field(title='Rmsd')] = None
+    """
+    Fit RMSD (`rmsd_units`).
+    """
     rmsd_full: Annotated[Optional[float], Field(title='Rmsd Full')] = None
+    """
+    Fit RMSD over the whole profile (`rmsd_units`).
+    """
     rmsd_units: Annotated[Optional[str], Field(title='Rmsd Units')] = None
+    """
+    Units of the RMSDs (kJ/mol).
+    """
     disc_error: Annotated[Optional[float], Field(title='Disc Error')] = None
+    """
+    Error from discretising the fit onto IFP terms (kJ/mol).
+    """
     n_minima_qm: Annotated[Optional[int], Field(title='N Minima Qm')] = None
+    """
+    Minima in the QM profile.
+    """
     n_minima_fit: Annotated[Optional[int], Field(title='N Minima Fit')] = None
+    """
+    Minima in the fitted profile.
+    """
     minima_match: Annotated[Optional[bool], Field(title='Minima Match')] = None
+    """
+    Whether the fit has the QM minima.
+    """
     rest_energy_kj: Annotated[Optional[float], Field(title='Rest Energy Kj')] = None
+    """
+    How far above the QM ground state the fitted profile comes to rest (kJ/mol).
+    """
     fit_failed: Annotated[bool, Field(title='Fit Failed')]
+    """
+    The fit failed.
+    """
     auto_exclude: Annotated[bool, Field(title='Auto Exclude')]
+    """
+    Excluded from the IFP by its flags.
+    """
     flags: Annotated[Optional[List[str]], Field(title='Flags')] = []
+    """
+    Quality flags, e.g. `poor_fit`.
+    """
     term_ids: Annotated[Optional[List], Field(title='Term Ids')] = []
+    """
+    IFP dihedral type codes it contributed.
+    """
     in_ifp: Annotated[bool, Field(title='In Ifp')]
+    """
+    Its terms are in the current IFP.
+    """
     update_date: Annotated[Optional[str], Field(title='Update Date')] = None
+    """
+    When it was last imported (UTC).
+    """
 
 
 class AuditRow(BaseModel):
@@ -196,18 +352,57 @@ class AuditRow(BaseModel):
         extra='allow',
     )
     id: Annotated[int, Field(title='Id')]
+    """
+    Row id.
+    """
     at: Annotated[Optional[str], Field(title='At')] = None
+    """
+    When (UTC).
+    """
     key_id: Annotated[Optional[int], Field(title='Key Id')] = None
+    """
+    The key used; null for the internal token or no key.
+    """
     principal: Annotated[str, Field(title='Principal')]
+    """
+    user, service, root or anonymous.
+    """
     user_email: Annotated[Optional[str], Field(title='User Email')] = None
+    """
+    The account, for a user key.
+    """
     method: Annotated[str, Field(title='Method')]
+    """
+    HTTP method.
+    """
     path: Annotated[str, Field(title='Path')]
+    """
+    Request path.
+    """
     target_type: Annotated[Optional[str], Field(title='Target Type')] = None
+    """
+    What was acted on, e.g. `molecule`, `key`, `user`.
+    """
     target_id: Annotated[Optional[str], Field(title='Target Id')] = None
+    """
+    Its id.
+    """
     outcome: Annotated[str, Field(title='Outcome')]
+    """
+    ok, denied or error.
+    """
     status: Annotated[int, Field(title='Status')]
+    """
+    HTTP status answered.
+    """
     detail: Annotated[Any, Field(title='Detail')] = None
+    """
+    What changed, or why it was refused.
+    """
     ip: Annotated[Optional[str], Field(title='Ip')] = None
+    """
+    Client IP.
+    """
 
 
 class BatchItem(BaseModel):
@@ -215,9 +410,21 @@ class BatchItem(BaseModel):
         extra='allow',
     )
     index: Annotated[int, Field(title='Index')]
+    """
+    Position in the request, from 0.
+    """
     client_reference: Annotated[Optional[str], Field(title='Client Reference')] = None
+    """
+    As submitted.
+    """
     molid: Annotated[Optional[int], Field(title='Molid')] = None
+    """
+    The new molecule, or for a duplicate the existing one.
+    """
     compound_id: Annotated[Optional[int], Field(title='Compound Id')] = None
+    """
+    Its compound.
+    """
     problem: Annotated[Optional[Dict[str, Any]], Field(title='Problem')] = None
     """
     Why this item was not submitted (RFC 9457 body).
@@ -236,14 +443,14 @@ class CallbackUrl(RootModel[str]):
         str, Field(pattern='^https?://[^\\s]{1,2040}$', title='Callback Url')
     ]
     """
-    Stored with the submission; events are delivered from a later release (plan WP6). Polling is the baseline.
+    POSTed molecule.finished / molecule.failed / topology.regenerated events, signed with the `callback_secret` the response returns once. Port 80 or 443 only. Polling is the baseline.
     """
 
 
 class Sdf(RootModel[str]):
     root: Annotated[str, Field(max_length=20000000, title='Sdf')]
     """
-    A multi-record SDF, split on `$$$$`. At most 100 records.
+    A multi-record SDF, split on `$$$$`. At most 100 records. Give this or `structures`.
     """
 
 
@@ -266,9 +473,21 @@ class BatchResult(BaseModel):
         extra='allow',
     )
     items: Annotated[List[BatchItem], Field(title='Items')]
+    """
+    One per structure, in request order.
+    """
     submitted: Annotated[int, Field(title='Submitted')]
+    """
+    Items inserted.
+    """
     refused: Annotated[int, Field(title='Refused')]
+    """
+    Items carrying a `problem`.
+    """
     dry_run: Annotated[bool, Field(title='Dry Run')]
+    """
+    True if nothing was inserted.
+    """
     submissions_remaining: Annotated[
         Optional[int], Field(title='Submissions Remaining')
     ] = None
@@ -280,12 +499,15 @@ class BatchResult(BaseModel):
 class Netcharge1(RootModel[int]):
     root: Annotated[int, Field(ge=-20, le=20, title='Netcharge')]
     """
-    Default: the request's `netcharge`.
+    Net charge (e). Default: the request's `netcharge`.
     """
 
 
 class ClientReference(RootModel[str]):
     root: Annotated[str, Field(max_length=128, title='Client Reference')]
+    """
+    Your own identifier, returned with the result.
+    """
 
 
 class BatchStructure(BaseModel):
@@ -295,16 +517,25 @@ class BatchStructure(BaseModel):
     structure: Annotated[
         str, Field(max_length=5000000, min_length=1, title='Structure')
     ]
+    """
+    The structure as text.
+    """
     format: Annotated[
         Optional[Literal['pdb', 'sdf', 'mol', 'mol2', 'smiles']], Field(title='Format')
     ] = 'pdb'
+    """
+    The format of `structure`.
+    """
     netcharge: Annotated[Optional[Netcharge1], Field(title='Netcharge')] = None
     """
-    Default: the request's `netcharge`.
+    Net charge (e). Default: the request's `netcharge`.
     """
     client_reference: Annotated[
         Optional[ClientReference], Field(title='Client Reference')
     ] = None
+    """
+    Your own identifier, returned with the result.
+    """
 
 
 class BondedParameters(BaseModel):
@@ -312,8 +543,17 @@ class BondedParameters(BaseModel):
         extra='allow',
     )
     molid: Annotated[int, Field(title='Molid')]
+    """
+    The molecule.
+    """
     forcefield: Annotated[str, Field(title='Forcefield')]
+    """
+    The force field.
+    """
     topology_hash: Annotated[str, Field(title='Topology Hash')]
+    """
+    The topology version read.
+    """
     record: Annotated[Optional[Dict[str, Any]], Field(title='Record')] = None
     """
     The topology's `bonded_assignment` record.
@@ -321,7 +561,13 @@ class BondedParameters(BaseModel):
     angle_constraints: Annotated[
         Optional[Dict[str, Any]], Field(title='Angle Constraints')
     ] = None
+    """
+    The angle-sum reconciliation record, if any.
+    """
     note: Annotated[Optional[str], Field(title='Note')] = None
+    """
+    Why there is no record, when so.
+    """
 
 
 class BundleRequest(BaseModel):
@@ -329,11 +575,17 @@ class BundleRequest(BaseModel):
         extra='allow',
     )
     molids: Annotated[List[int], Field(max_length=50, min_length=1, title='Molids')]
+    """
+    1 to 50 molecules.
+    """
     names: Annotated[List[str], Field(max_length=40, min_length=1, title='Names')]
     """
     File names (v1 or v0.1 vocabulary).
     """
     forcefield: Annotated[Optional[str], Field(title='Forcefield')] = None
+    """
+    e.g. `54A7`. Default: the site default.
+    """
     hash: Annotated[Optional[Dict[str, str]], Field(title='Hash')] = None
     """
     Pin a stored topology version per molid.
@@ -345,12 +597,33 @@ class BundleResult(BaseModel):
         extra='allow',
     )
     job_id: Annotated[Optional[str], Field(title='Job Id')] = None
+    """
+    The job that built the zip.
+    """
     download_url: Annotated[str, Field(title='Download Url')]
+    """
+    Where to fetch the zip: `GET /jobs/{id}/result`.
+    """
     size: Annotated[int, Field(title='Size')]
+    """
+    Zip size in bytes.
+    """
     forcefield: Annotated[str, Field(title='Forcefield')]
+    """
+    The force field of the topology files.
+    """
     files: Annotated[int, Field(title='Files')]
+    """
+    Files in the zip.
+    """
     missing: Annotated[List[Dict[str, Any]], Field(title='Missing')]
+    """
+    `{molid, name, reason}` for each file not included.
+    """
     retention_hours: Annotated[int, Field(title='Retention Hours')]
+    """
+    How long the zip is kept.
+    """
 
 
 class CacheClear(BaseModel):
@@ -368,9 +641,21 @@ class CacheCleared(BaseModel):
         extra='allow',
     )
     molid: Annotated[int, Field(title='Molid')]
+    """
+    The molecule.
+    """
     all: Annotated[bool, Field(title='All')]
+    """
+    Whether every version was removed.
+    """
     removed: Annotated[List[str], Field(title='Removed')]
+    """
+    Directories removed.
+    """
     kept: Annotated[Optional[List[Dict[str, Any]]], Field(title='Kept')] = None
+    """
+    Versions left in place.
+    """
 
 
 class Change(BaseModel):
@@ -378,9 +663,21 @@ class Change(BaseModel):
         extra='allow',
     )
     molid: Annotated[int, Field(title='Molid')]
+    """
+    The molecule.
+    """
     stage: Annotated[str, Field(title='Stage')]
+    """
+    Its status stage now.
+    """
     topology_hash: Annotated[Optional[str], Field(title='Topology Hash')] = None
+    """
+    Its current topology version, if cached.
+    """
     changed_at: Annotated[Optional[str], Field(title='Changed At')] = None
+    """
+    When it changed (UTC).
+    """
 
 
 class ChangePage(BaseModel):
@@ -388,9 +685,221 @@ class ChangePage(BaseModel):
         extra='allow',
     )
     items: Annotated[List[Change], Field(title='Items')]
+    """
+    Changes, oldest first.
+    """
     next_cursor: Annotated[str, Field(title='Next Cursor')]
     """
     Pass as `since` to continue from here; returned even when empty.
+    """
+
+
+class ClaimAccept(BaseModel):
+    model_config = ConfigDict(
+        extra='allow',
+    )
+    molids: Annotated[List[int], Field(max_length=500, min_length=1, title='Molids')]
+    """
+    All or nothing: one refusal refuses the batch.
+    """
+    runner_id: Annotated[str, Field(max_length=32, min_length=32, title='Runner Id')]
+    """
+    The runner, as CHAR(32).
+    """
+
+
+class ClaimRelease(BaseModel):
+    model_config = ConfigDict(
+        extra='allow',
+    )
+    molids: Annotated[List[int], Field(max_length=500, min_length=1, title='Molids')]
+    """
+    All or nothing: one refusal refuses the batch.
+    """
+
+
+class ClaimSync(BaseModel):
+    model_config = ConfigDict(
+        extra='allow',
+    )
+    runner_id: Annotated[
+        Optional[str], Field(max_length=32, min_length=32, title='Runner Id')
+    ] = '00000000000000000000000000000000'
+    """
+    The runner, as CHAR(32).
+    """
+    running_molids: Annotated[
+        Optional[List[int]], Field(max_length=100000, title='Running Molids')
+    ] = None
+    """
+    Molecules the runner is running.
+    """
+    failed_molids: Annotated[
+        Optional[List[int]], Field(max_length=100000, title='Failed Molids')
+    ] = None
+    """
+    Molecules whose job failed on the runner.
+    """
+
+
+class Claimed(BaseModel):
+    model_config = ConfigDict(
+        extra='allow',
+    )
+    molids: Annotated[List[int], Field(title='Molids')]
+    """
+    The molecules claimed (or released).
+    """
+
+
+class CompoundFields(BaseModel):
+    """
+    `compounds/set`'s field set. Without `overwrite` nothing is written unless every
+    field sent is NULL on the compound (v0.1's rule); send only the missing ones.
+    """
+
+    model_config = ConfigDict(
+        extra='allow',
+    )
+    inchi_key: Annotated[Optional[str], Field(title='Inchi Key')] = None
+    """
+    Non-standard (FixedH) InChIKey.
+    """
+    inchi: Annotated[Optional[str], Field(title='Inchi')] = None
+    """
+    Non-standard (FixedH) InChI.
+    """
+    smiles: Annotated[Optional[str], Field(title='Smiles')] = None
+    """
+    SMILES.
+    """
+    iupac: Annotated[Optional[str], Field(title='Iupac')] = None
+    """
+    IUPAC name.
+    """
+    common_name: Annotated[Optional[str], Field(title='Common Name')] = None
+    """
+    Common name.
+    """
+    chemspider_id: Annotated[Optional[int], Field(title='Chemspider Id')] = None
+    """
+    ChemSpider id.
+    """
+    chembl_id: Annotated[Optional[str], Field(title='Chembl Id')] = None
+    """
+    ChEMBL id.
+    """
+    pubmed_id: Annotated[Optional[int], Field(title='Pubmed Id')] = None
+    """
+    The compounds.pubmed_id column.
+    """
+    pdb_hetid: Annotated[Optional[str], Field(title='Pdb Hetid')] = None
+    """
+    PDB ligand id.
+    """
+    chembl_molregno: Annotated[Optional[int], Field(title='Chembl Molregno')] = None
+    """
+    ChEMBL molregno.
+    """
+    formula: Annotated[Optional[str], Field(title='Formula')] = None
+    """
+    Molecular formula.
+    """
+    external_inchi: Annotated[Optional[str], Field(title='External Inchi')] = None
+    """
+    Standard InChI.
+    """
+    external_inchi_key: Annotated[Optional[str], Field(title='External Inchi Key')] = (
+        None
+    )
+    """
+    Standard InChIKey.
+    """
+    max_phase: Annotated[Optional[int], Field(title='Max Phase')] = None
+    """
+    ChEMBL maximum clinical phase.
+    """
+    zinc_id: Annotated[Optional[str], Field(title='Zinc Id')] = None
+    """
+    ZINC id.
+    """
+    zinc_protomer_id: Annotated[Optional[int], Field(title='Zinc Protomer Id')] = None
+    """
+    ZINC protomer id.
+    """
+    overwrite: Annotated[Optional[bool], Field(title='Overwrite')] = False
+    """
+    Write even over fields already set.
+    """
+
+
+class CompoundRemap(BaseModel):
+    model_config = ConfigDict(
+        extra='allow',
+    )
+    pdb: Annotated[Optional[str], Field(title='Pdb')] = None
+    """
+    The optimised structure to derive the identity from; default the molecule's stored pdb_allatom_optimised.
+    """
+
+
+class CompoundRemapped(BaseModel):
+    model_config = ConfigDict(
+        extra='allow',
+    )
+    molid: Annotated[int, Field(title='Molid')]
+    """
+    The molecule.
+    """
+    changed: Annotated[bool, Field(title='Changed')]
+    """
+    Whether the molecule moved to another compound.
+    """
+    old_compound_id: Annotated[Optional[int], Field(title='Old Compound Id')] = None
+    """
+    The compound before.
+    """
+    new_compound_id: Annotated[Optional[int], Field(title='New Compound Id')] = None
+    """
+    The compound after.
+    """
+    created: Annotated[bool, Field(title='Created')]
+    """
+    Whether the new compound was created.
+    """
+    tautomer_group_id: Annotated[Optional[int], Field(title='Tautomer Group Id')] = None
+    """
+    The legacy tautomer group of the new compound.
+    """
+    inchi_key: Annotated[Optional[str], Field(title='Inchi Key')] = None
+    """
+    The non-standard (FixedH) InChIKey it was matched by.
+    """
+    message: Annotated[str, Field(title='Message')]
+    """
+    What happened, in words.
+    """
+
+
+class CompoundUpdated(BaseModel):
+    model_config = ConfigDict(
+        extra='allow',
+    )
+    molid: Annotated[int, Field(title='Molid')]
+    """
+    The molecule.
+    """
+    compound_id: Annotated[int, Field(title='Compound Id')]
+    """
+    The compound written.
+    """
+    fields: Annotated[List[str], Field(title='Fields')]
+    """
+    The fields sent.
+    """
+    rows: Annotated[int, Field(title='Rows')]
+    """
+    0: a sent field was already set, and overwrite was false.
     """
 
 
@@ -399,9 +908,12 @@ class Conformation(BaseModel):
         extra='allow',
     )
     molid: Annotated[int, Field(title='Molid')]
+    """
+    The molecule.
+    """
     energy: Annotated[Optional[float], Field(title='Energy')] = None
     """
-    wB97X/6-31G(d) SMD water energy (kJ/mol, as qm_energies stores it), if any.
+    Lowest wB97X/6-31G(d) SMD-water energy (kJ/mol); null if none.
     """
 
 
@@ -410,9 +922,35 @@ class Conformations(BaseModel):
         extra='allow',
     )
     molid: Annotated[int, Field(title='Molid')]
+    """
+    The molecule asked about.
+    """
     compound_id: Annotated[Optional[int], Field(title='Compound Id')] = None
+    """
+    Their compound.
+    """
     qm_type: Annotated[str, Field(title='Qm Type')]
+    """
+    The method the energies are from.
+    """
     items: Annotated[List[Conformation], Field(title='Items')]
+    """
+    Every visible molecule of the compound.
+    """
+
+
+class CpuTime(BaseModel):
+    model_config = ConfigDict(
+        extra='allow',
+    )
+    molid: Annotated[int, Field(title='Molid')]
+    """
+    The molecule.
+    """
+    cpu_minutes: Annotated[int, Field(title='Cpu Minutes')]
+    """
+    -1 for a manual molecule.
+    """
 
 
 class CurationResult(BaseModel):
@@ -420,17 +958,44 @@ class CurationResult(BaseModel):
         extra='allow',
     )
     molid: Annotated[int, Field(title='Molid')]
+    """
+    The molecule.
+    """
     changed: Annotated[Dict[str, Any], Field(title='Changed')]
+    """
+    Each field changed, with its `from` and `to` values.
+    """
     qm_level: Annotated[Optional[int], Field(title='Qm Level')] = None
+    """
+    Highest QM level reached.
+    """
     max_qm_level: Annotated[Optional[int], Field(title='Max Qm Level')] = None
+    """
+    The QM level cap now.
+    """
     curation_trust: Annotated[Optional[int], Field(title='Curation Trust')] = None
+    """
+    curation_trust now.
+    """
     datasets: Annotated[Optional[List[str]], Field(title='Datasets')] = None
+    """
+    Dataset flags now.
+    """
     tags: Annotated[Optional[List[str]], Field(title='Tags')] = None
+    """
+    The compound's tags now.
+    """
     stage: Annotated[Optional[str], Field(title='Stage')] = None
+    """
+    The status stage now (see the guide).
+    """
 
 
 class Reason(RootModel[str]):
     root: Annotated[str, Field(max_length=1000, title='Reason')]
+    """
+    Why; passed to the administrators.
+    """
 
 
 class DeletionRequest(BaseModel):
@@ -438,6 +1003,9 @@ class DeletionRequest(BaseModel):
         extra='allow',
     )
     reason: Annotated[Optional[Reason], Field(title='Reason')] = None
+    """
+    Why; passed to the administrators.
+    """
 
 
 class DeletionRequestItem(BaseModel):
@@ -445,11 +1013,29 @@ class DeletionRequestItem(BaseModel):
         extra='allow',
     )
     molid: Annotated[int, Field(title='Molid')]
+    """
+    The molecule.
+    """
     owner: Annotated[Optional[str], Field(title='Owner')] = None
+    """
+    The owner's email.
+    """
     public: Annotated[bool, Field(title='Public')]
+    """
+    Whether it is public.
+    """
     request_time: Annotated[Any, Field(title='Request Time')] = None
+    """
+    When the molecule was submitted.
+    """
     deletable: Annotated[bool, Field(title='Deletable')]
+    """
+    False if something blocks deletion.
+    """
     blockers: Annotated[Optional[List[Dict[str, Any]]], Field(title='Blockers')] = None
+    """
+    What blocks it, e.g. dihedral runs or a live QM claim.
+    """
 
 
 class DeletionRequestPage(BaseModel):
@@ -457,6 +1043,9 @@ class DeletionRequestPage(BaseModel):
         extra='allow',
     )
     items: Annotated[List[DeletionRequestItem], Field(title='Items')]
+    """
+    Molecules flagged for deletion.
+    """
 
 
 class DeletionRequestResult(BaseModel):
@@ -464,7 +1053,13 @@ class DeletionRequestResult(BaseModel):
         extra='allow',
     )
     molid: Annotated[int, Field(title='Molid')]
+    """
+    The molecule.
+    """
     scheduled_for_deletion: Annotated[bool, Field(title='Scheduled For Deletion')]
+    """
+    Always true: the request is recorded.
+    """
 
 
 class ExperimentalValue(BaseModel):
@@ -472,9 +1067,21 @@ class ExperimentalValue(BaseModel):
         extra='allow',
     )
     value: Annotated[Optional[float], Field(title='Value')] = None
+    """
+    Experimental solvation free energy (kJ/mol).
+    """
     uncertainty: Annotated[Optional[float], Field(title='Uncertainty')] = None
+    """
+    Its uncertainty (kJ/mol).
+    """
     solvent: Annotated[Optional[str], Field(title='Solvent')] = None
+    """
+    Solvent, as a formula (e.g. `H2O`).
+    """
     doi: Annotated[Optional[str], Field(title='Doi')] = None
+    """
+    Source DOI.
+    """
 
 
 class FileEntry(BaseModel):
@@ -490,6 +1097,9 @@ class FileEntry(BaseModel):
     The v0.1 name; accepted as an alias.
     """
     media_type: Annotated[str, Field(title='Media Type')]
+    """
+    Content type of the download.
+    """
     source: Annotated[str, Field(title='Source')]
     """
     topology | molecule_files | qm_log | qm_data | emin_vac
@@ -507,6 +1117,9 @@ class FileEntry(BaseModel):
     A QM/log file: readable by classes 5 and 6, admin and service keys.
     """
     url: Annotated[str, Field(title='Url')]
+    """
+    Download path.
+    """
 
 
 class FileList(BaseModel):
@@ -514,12 +1127,35 @@ class FileList(BaseModel):
         extra='allow',
     )
     molid: Annotated[int, Field(title='Molid')]
+    """
+    The molecule.
+    """
     forcefield: Annotated[str, Field(title='Forcefield')]
+    """
+    The force field listed.
+    """
     topology_hash: Annotated[Optional[str], Field(title='Topology Hash')] = None
     """
     The topology version listed; null when none is cached.
     """
     items: Annotated[List[FileEntry], Field(title='Items')]
+    """
+    The files.
+    """
+
+
+class FileWritten(BaseModel):
+    model_config = ConfigDict(
+        extra='allow',
+    )
+    name: Annotated[str, Field(title='Name')]
+    """
+    File name.
+    """
+    written: Annotated[bool, Field(title='Written')]
+    """
+    False if it existed and `overwrite` was false.
+    """
 
 
 class FlagRequest(BaseModel):
@@ -537,7 +1173,13 @@ class FlagResult(BaseModel):
         extra='allow',
     )
     molid: Annotated[int, Field(title='Molid')]
+    """
+    The molecule.
+    """
     flagged: Annotated[bool, Field(title='Flagged')]
+    """
+    Always true: the report is recorded.
+    """
 
 
 class ForcefieldLinks(BaseModel):
@@ -558,6 +1200,50 @@ class ForcefieldLinks(BaseModel):
     """
 
 
+class GamessJob(BaseModel):
+    model_config = ConfigDict(
+        extra='allow',
+    )
+    molid: Annotated[int, Field(title='Molid')]
+    """
+    The molecule.
+    """
+    qm_calculation_type: Annotated[str, Field(title='Qm Calculation Type')]
+    """
+    The calculation, e.g. `GFN2_xTB` or `wB97X_631Gd_SMD_water`.
+    """
+    starting_from: Annotated[Optional[str], Field(title='Starting From')] = None
+    """
+    The stored calculation whose geometry it starts from.
+    """
+    files: Annotated[Dict[str, str], Field(title='Files')]
+    """
+    {"qm_input.inp": <the GAMESS deck>}
+    """
+
+
+class GamessJobRequest(BaseModel):
+    model_config = ConfigDict(
+        extra='allow',
+    )
+    molid: Annotated[int, Field(title='Molid')]
+    """
+    The molecule.
+    """
+    calculation_type: Annotated[str, Field(title='Calculation Type')]
+    """
+    The GAMESS calculation type, e.g. `wB97X_631Gd_SMD_water`.
+    """
+    starting_from: Annotated[Optional[str], Field(title='Starting From')] = None
+    """
+    A stored calculation to start from; default the best one.
+    """
+    rerun: Annotated[Optional[bool], Field(title='Rerun')] = False
+    """
+    Hand it out again. A row that has spent a retry (STALE, RETRIED, RESUBMITTED) becomes RESUBMITTED -- v1 never walks the retry ladder back.
+    """
+
+
 class Health(BaseModel):
     model_config = ConfigDict(
         extra='allow',
@@ -567,18 +1253,33 @@ class Health(BaseModel):
     ok, degraded (Redis or the job broker down, or the schema missing) or down (no database)
     """
     role: Annotated[str, Field(title='Role')]
+    """
+    Which listener answered: public or internal.
+    """
     version: Annotated[Optional[str], Field(title='Version')] = None
     """
     The git sha of the running code.
     """
     database: Annotated[bool, Field(title='Database')]
+    """
+    The database answers.
+    """
     redis: Annotated[bool, Field(title='Redis')]
+    """
+    Redis (rate limits) answers.
+    """
     broker: Annotated[bool, Field(title='Broker')]
     """
     The Celery broker that jobs (generation, submission, search, bundles) are queued through accepts connections.
     """
     schema_present: Annotated[bool, Field(title='Schema Present')]
+    """
+    Every v1 table exists.
+    """
     tables: Annotated[Dict[str, bool], Field(title='Tables')]
+    """
+    Each v1 table and whether it exists.
+    """
 
 
 class Job(BaseModel):
@@ -598,8 +1299,17 @@ class Job(BaseModel):
     queued | running | done | failed
     """
     created_at: Annotated[Optional[str], Field(title='Created At')] = None
+    """
+    When it was queued (UTC).
+    """
     started_at: Annotated[Optional[str], Field(title='Started At')] = None
+    """
+    When it started (UTC).
+    """
     finished_at: Annotated[Optional[str], Field(title='Finished At')] = None
+    """
+    When it finished (UTC).
+    """
     result: Annotated[Optional[Dict[str, Any]], Field(title='Result')] = None
     """
     When done: what the originating request would have answered (a submission's molid, a search's matches, a bundle's `download_url`, ...). Never an inline file.
@@ -613,6 +1323,9 @@ class Job(BaseModel):
     When failed: the problem (RFC 9457) the originating request would have answered.
     """
     links: Annotated[Dict[str, str], Field(title='Links')]
+    """
+    `self`, and once done `result`.
+    """
 
 
 class JobPage(BaseModel):
@@ -620,7 +1333,13 @@ class JobPage(BaseModel):
         extra='allow',
     )
     items: Annotated[List[Job], Field(title='Items')]
+    """
+    Jobs, newest first.
+    """
     next_cursor: Annotated[Optional[str], Field(title='Next Cursor')] = None
+    """
+    Pass as `cursor` for the next page; null on the last.
+    """
 
 
 class KeyCreate(BaseModel):
@@ -648,23 +1367,56 @@ class KeyCreated(BaseModel):
         extra='allow',
     )
     id: Annotated[int, Field(title='Id')]
+    """
+    Key id.
+    """
     prefix: Annotated[str, Field(title='Prefix')]
+    """
+    The key's public id (8 characters after `atb_`); safe to log.
+    """
     principal: Annotated[str, Field(title='Principal')]
+    """
+    user, service or root.
+    """
     name: Annotated[Optional[str], Field(title='Name')] = None
+    """
+    Its label.
+    """
     format: Annotated[str, Field(title='Format')]
+    """
+    `v1`, or `legacy` for a v0.1 API token.
+    """
     scopes: Annotated[List[str], Field(title='Scopes')]
+    """
+    What it may do (see Scopes in the guide).
+    """
     created_at: Annotated[Optional[str], Field(title='Created At')] = None
+    """
+    When it was made (UTC).
+    """
     expires_at: Annotated[Optional[str], Field(title='Expires At')] = None
+    """
+    When it stops working (UTC); null: never.
+    """
     last_used_at: Annotated[Optional[str], Field(title='Last Used At')] = None
+    """
+    Last request made with it (UTC).
+    """
     revoked_at: Annotated[Optional[str], Field(title='Revoked At')] = None
+    """
+    When it was revoked (UTC); null: live.
+    """
     created_by_key_id: Annotated[Optional[int], Field(title='Created By Key Id')] = None
+    """
+    The key that minted it.
+    """
     burst_per_min: Annotated[Optional[int], Field(title='Burst Per Min')] = None
     """
-    Null: the class default.
+    Requests per minute. Null: the class default.
     """
     daily_limit: Annotated[Optional[int], Field(title='Daily Limit')] = None
     """
-    Null: the class default.
+    Weighted requests per UTC day. Null: the class default.
     """
     key: Annotated[str, Field(title='Key')]
     """
@@ -677,32 +1429,71 @@ class KeyInfo(BaseModel):
         extra='allow',
     )
     id: Annotated[int, Field(title='Id')]
+    """
+    Key id.
+    """
     prefix: Annotated[str, Field(title='Prefix')]
+    """
+    The key's public id (8 characters after `atb_`); safe to log.
+    """
     principal: Annotated[str, Field(title='Principal')]
+    """
+    user, service or root.
+    """
     name: Annotated[Optional[str], Field(title='Name')] = None
+    """
+    Its label.
+    """
     format: Annotated[str, Field(title='Format')]
+    """
+    `v1`, or `legacy` for a v0.1 API token.
+    """
     scopes: Annotated[List[str], Field(title='Scopes')]
+    """
+    What it may do (see Scopes in the guide).
+    """
     created_at: Annotated[Optional[str], Field(title='Created At')] = None
+    """
+    When it was made (UTC).
+    """
     expires_at: Annotated[Optional[str], Field(title='Expires At')] = None
+    """
+    When it stops working (UTC); null: never.
+    """
     last_used_at: Annotated[Optional[str], Field(title='Last Used At')] = None
+    """
+    Last request made with it (UTC).
+    """
     revoked_at: Annotated[Optional[str], Field(title='Revoked At')] = None
+    """
+    When it was revoked (UTC); null: live.
+    """
     created_by_key_id: Annotated[Optional[int], Field(title='Created By Key Id')] = None
+    """
+    The key that minted it.
+    """
     burst_per_min: Annotated[Optional[int], Field(title='Burst Per Min')] = None
     """
-    Null: the class default.
+    Requests per minute. Null: the class default.
     """
     daily_limit: Annotated[Optional[int], Field(title='Daily Limit')] = None
     """
-    Null: the class default.
+    Weighted requests per UTC day. Null: the class default.
     """
 
 
 class BurstPerMin2(RootModel[int]):
     root: Annotated[int, Field(ge=1, le=100000, title='Burst Per Min')]
+    """
+    Requests per minute.
+    """
 
 
 class DailyLimit2(RootModel[int]):
     root: Annotated[int, Field(ge=1, le=10000000, title='Daily Limit')]
+    """
+    Weighted requests per UTC day.
+    """
 
 
 class KeyLimitsUpdate(BaseModel):
@@ -716,7 +1507,13 @@ class KeyLimitsUpdate(BaseModel):
     burst_per_min: Annotated[Optional[BurstPerMin2], Field(title='Burst Per Min')] = (
         None
     )
+    """
+    Requests per minute.
+    """
     daily_limit: Annotated[Optional[DailyLimit2], Field(title='Daily Limit')] = None
+    """
+    Weighted requests per UTC day.
+    """
 
 
 class KeyList(BaseModel):
@@ -724,6 +1521,9 @@ class KeyList(BaseModel):
         extra='allow',
     )
     items: Annotated[List[KeyInfo], Field(title='Items')]
+    """
+    Every key of the account, by id.
+    """
 
 
 class KeyUsage(BaseModel):
@@ -731,8 +1531,49 @@ class KeyUsage(BaseModel):
         extra='allow',
     )
     key_id: Annotated[int, Field(title='Key Id')]
+    """
+    The key.
+    """
     prefix: Annotated[str, Field(title='Prefix')]
+    """
+    Its public prefix.
+    """
     weight: Annotated[int, Field(title='Weight')]
+    """
+    Weighted requests today.
+    """
+
+
+class LgfWritten(BaseModel):
+    model_config = ConfigDict(
+        extra='allow',
+    )
+    molid: Annotated[int, Field(title='Molid')]
+    """
+    The molecule.
+    """
+    already: Annotated[bool, Field(title='Already')]
+    """
+    The LGF had been written before; nothing was written.
+    """
+    written_to: Annotated[Optional[str], Field(title='Written To')] = None
+    """
+    Where the LGF was written.
+    """
+    went_to_graphs_dir: Annotated[Optional[bool], Field(title='Went To Graphs Dir')] = (
+        None
+    )
+    """
+    false: spooled locally, the graphs mount was down.
+    """
+    message: Annotated[str, Field(title='Message')]
+    """
+    What happened, in words.
+    """
+    topology_hash: Annotated[Optional[str], Field(title='Topology Hash')] = None
+    """
+    The topology it was built from.
+    """
 
 
 class LibraryVersionList(BaseModel):
@@ -744,7 +1585,13 @@ class LibraryVersionList(BaseModel):
     `atb_bonded.library_versions` rows, newest first: id, build_id, status, published, ifp_stamp, content_sha256, acceptance, predecessor_id, created_at. Only published versions unless the key is admin or a service.
     """
     next_cursor: Annotated[Optional[str], Field(title='Next Cursor')] = None
+    """
+    Always null: the list is short.
+    """
     total: Annotated[int, Field(title='Total')]
+    """
+    Length of `items`.
+    """
     builds: Annotated[List[Dict[str, Any]], Field(title='Builds')]
     """
     The builds this key may read (published builds only, unless admin or a service), newest first.
@@ -761,11 +1608,204 @@ class Limits(BaseModel):
     )
     burst_per_min: Annotated[Optional[int], Field(title='Burst Per Min')] = None
     """
-    Null: not limited.
+    Requests per minute. Null: not limited.
     """
     daily_limit: Annotated[Optional[int], Field(title='Daily Limit')] = None
     """
     Weighted requests per UTC day. Null: not limited.
+    """
+
+
+class LocalFailure(BaseModel):
+    model_config = ConfigDict(
+        extra='allow',
+    )
+    molid: Annotated[int, Field(title='Molid')]
+    """
+    The molecule.
+    """
+    qm_calculation_type: Annotated[str, Field(title='Qm Calculation Type')]
+    """
+    The calculation, e.g. `GFN2_xTB` or `wB97X_631Gd_SMD_water`.
+    """
+    status: Annotated[Literal['ERROR', 'NOT_CONVERGED'], Field(title='Status')]
+    """
+    ERROR or NOT_CONVERGED.
+    """
+    reason: Annotated[Optional[str], Field(max_length=100000, title='Reason')] = ''
+    """
+    Why, for the ledger.
+    """
+
+
+class LocalFailureRecorded(BaseModel):
+    model_config = ConfigDict(
+        extra='allow',
+    )
+    molid: Annotated[int, Field(title='Molid')]
+    """
+    The molecule.
+    """
+    qm_calculation_type: Annotated[str, Field(title='Qm Calculation Type')]
+    """
+    The calculation, e.g. `GFN2_xTB` or `wB97X_631Gd_SMD_water`.
+    """
+    status: Annotated[str, Field(title='Status')]
+    """
+    The status recorded.
+    """
+    recorded: Annotated[bool, Field(title='Recorded')]
+    """
+    false: there was no open row to close (a late duplicate).
+    """
+
+
+class LocalJob(BaseModel):
+    model_config = ConfigDict(
+        extra='allow',
+    )
+    molid: Annotated[int, Field(title='Molid')]
+    """
+    The molecule.
+    """
+    qm_calculation_type: Annotated[str, Field(title='Qm Calculation Type')]
+    """
+    The calculation, e.g. `GFN2_xTB` or `wB97X_631Gd_SMD_water`.
+    """
+    starting_from: Annotated[Optional[str], Field(title='Starting From')] = None
+    """
+    The stored calculation whose geometry it starts from.
+    """
+    net_charge: Annotated[int, Field(title='Net Charge')]
+    """
+    Net charge (e).
+    """
+    files: Annotated[Dict[str, str], Field(title='Files')]
+    """
+    {"input.pdb": <the starting geometry>}
+    """
+
+
+class LocalJobRequest(BaseModel):
+    model_config = ConfigDict(
+        extra='allow',
+    )
+    molid: Annotated[int, Field(title='Molid')]
+    """
+    The molecule.
+    """
+    calculation_type: Annotated[str, Field(title='Calculation Type')]
+    """
+    A locally-run type: GFN2_xTB, wB97X_631Gd_SMD_water_pyscf, ...
+    """
+    rerun: Annotated[Optional[bool], Field(title='Rerun')] = False
+    """
+    Hand it out again although it has a ledger row. A STALE or RESUBMITTED row becomes RESUBMITTED (its retry is spent), anything else COMPLETED.
+    """
+
+
+class LocalResult(BaseModel):
+    model_config = ConfigDict(
+        extra='allow',
+    )
+    molid: Annotated[int, Field(title='Molid')]
+    """
+    The molecule.
+    """
+    qm_calculation_type: Annotated[str, Field(title='Qm Calculation Type')]
+    """
+    The calculation, e.g. `GFN2_xTB` or `wB97X_631Gd_SMD_water`.
+    """
+    qm_data: Annotated[Dict[str, Any], Field(title='Qm Data')]
+    """
+    The QM-data dict, as a JSON object; per-atom maps keyed "1", "2", ... are turned back into integer keys.
+    """
+    geometry_pdb: Annotated[Optional[str], Field(title='Geometry Pdb')] = ''
+    """
+    The optimised geometry, as PDB text.
+    """
+    starting_geometry_pdb: Annotated[
+        Optional[str], Field(title='Starting Geometry Pdb')
+    ] = ''
+    """
+    For a type whose input the caller supplied: the structure it started from, which the connectivity check compares against.
+    """
+
+
+class LocalResultVerdict(BaseModel):
+    """
+    A rejection is a verdict, answered 200 with `accepted: false`, never an error:
+    the runner tells a verdict from a transient failure by the status code.
+    """
+
+    model_config = ConfigDict(
+        extra='allow',
+    )
+    accepted: Annotated[bool, Field(title='Accepted')]
+    """
+    False: the result was rejected; `reason` says why.
+    """
+    reason: Annotated[Optional[str], Field(title='Reason')] = ''
+    """
+    Why it was rejected; empty when accepted.
+    """
+    qm_data_path: Annotated[Optional[str], Field(title='Qm Data Path')] = None
+    """
+    Where the QM data was stored.
+    """
+    geometry_path: Annotated[Optional[str], Field(title='Geometry Path')] = None
+    """
+    Where the geometry was stored.
+    """
+
+
+class LogItem(BaseModel):
+    model_config = ConfigDict(
+        extra='allow',
+    )
+    molid: Annotated[int, Field(title='Molid')]
+    """
+    The molecule.
+    """
+    qm_calculation_type: Annotated[str, Field(title='Qm Calculation Type')]
+    """
+    The calculation, e.g. `GFN2_xTB` or `wB97X_631Gd_SMD_water`.
+    """
+    log: Annotated[str, Field(title='Log')]
+    """
+    The GAMESS log, as text (decode bytes as UTF-8 with errors="replace").
+    """
+
+
+class LogVerdict(BaseModel):
+    model_config = ConfigDict(
+        extra='allow',
+    )
+    molid: Annotated[int, Field(title='Molid')]
+    """
+    The molecule.
+    """
+    qm_calculation_type: Annotated[str, Field(title='Qm Calculation Type')]
+    """
+    The calculation, e.g. `GFN2_xTB` or `wB97X_631Gd_SMD_water`.
+    """
+    status: Annotated[str, Field(title='Status')]
+    """
+    STORED, ERROR, or COMPLETED for a type that is not an ATB QM level.
+    """
+
+
+class LogsAccepted(BaseModel):
+    model_config = ConfigDict(
+        extra='allow',
+    )
+    accepted_molids: Annotated[List[int], Field(title='Accepted Molids')]
+    """
+    Molecules whose log was stored.
+    """
+    verdicts: Annotated[List[LogVerdict], Field(title='Verdicts')]
+    """
+    One per item, in request order.
     """
 
 
@@ -778,12 +1818,33 @@ class Me(BaseModel):
     user, service or root
     """
     name: Annotated[str, Field(title='Name')]
+    """
+    The key's label, or the service name.
+    """
     key_id: Annotated[Optional[int], Field(title='Key Id')] = None
+    """
+    The calling key.
+    """
     key_prefix: Annotated[Optional[str], Field(title='Key Prefix')] = None
+    """
+    Its public prefix.
+    """
     key_expires_at: Annotated[Optional[str], Field(title='Key Expires At')] = None
+    """
+    When it expires (UTC); null: never.
+    """
     scopes: Annotated[List[str], Field(title='Scopes')]
+    """
+    What it may do.
+    """
     limits: Limits
+    """
+    The limits in force for it.
+    """
     account: Optional[Account] = None
+    """
+    The account, for a user key.
+    """
 
 
 class MaxQmLevel1(RootModel[int]):
@@ -795,6 +1856,9 @@ class MaxQmLevel1(RootModel[int]):
 
 class CurationTrust(RootModel[int]):
     root: Annotated[int, Field(ge=-1, le=2, title='Curation Trust')]
+    """
+    -1 failed, 0 generated by the ATB, 1 and 2 manually curated.
+    """
 
 
 class MoleculeLinks(BaseModel):
@@ -802,15 +1866,45 @@ class MoleculeLinks(BaseModel):
         extra='allow',
     )
     self: Annotated[str, Field(title='Self')]
+    """
+    This molecule.
+    """
     status: Annotated[str, Field(title='Status')]
+    """
+    Its status (free to poll).
+    """
     files: Annotated[str, Field(title='Files')]
+    """
+    Its files.
+    """
     topologies: Annotated[str, Field(title='Topologies')]
+    """
+    Its topology versions.
+    """
     qm: Annotated[str, Field(title='Qm')]
+    """
+    Its QM summary.
+    """
     validation: Annotated[str, Field(title='Validation')]
+    """
+    Its topology validation.
+    """
     solvation: Annotated[str, Field(title='Solvation')]
+    """
+    Its solvation free energies.
+    """
     parameters: Annotated[str, Field(title='Parameters')]
+    """
+    Its bonded-parameter assignment.
+    """
     tautomers: Annotated[str, Field(title='Tautomers')]
+    """
+    Its tautomer family.
+    """
     conformations: Annotated[str, Field(title='Conformations')]
+    """
+    Its alternative conformations.
+    """
 
 
 class MoleculePage(BaseModel):
@@ -822,6 +1916,9 @@ class MoleculePage(BaseModel):
     MoleculeSummary objects (narrowed by `fields=`).
     """
     next_cursor: Annotated[Optional[str], Field(title='Next Cursor')] = None
+    """
+    Pass as `cursor` for the next page; null on the last.
+    """
     total: Annotated[Optional[int], Field(title='Total')] = None
     """
     Present when the whole result is on this page.
@@ -833,6 +1930,9 @@ class MoleculeStatus(BaseModel):
         extra='allow',
     )
     molid: Annotated[int, Field(title='Molid')]
+    """
+    The molecule.
+    """
     stage: Annotated[str, Field(title='Stage')]
     """
     queued | qm0 | qm1 | qm2 | finished | capped | stalled | failed | rejected. `capped`: finished below qm2 (its highest level) with a topology; `stalled`: will not move without an operator (not terminal).
@@ -846,6 +1946,9 @@ class MoleculeStatus(BaseModel):
     A qm<N> stage whose calculation currently holds a claim.
     """
     detail: Annotated[str, Field(title='Detail')]
+    """
+    The stage in words, e.g. why it is stalled.
+    """
     since: Annotated[Optional[str], Field(title='Since')] = None
     """
     When the molecule entered this state, as near as the database records it.
@@ -863,8 +1966,17 @@ class MoleculeStatus(BaseModel):
     The highest QM level completed; -1 for none.
     """
     maximum_qm_level: Annotated[int, Field(title='Maximum Qm Level')]
+    """
+    The highest QM level it will get (set from its size).
+    """
     error: Annotated[Optional[str], Field(title='Error')] = None
+    """
+    The error, for a failed or rejected molecule.
+    """
     client_reference: Annotated[Optional[str], Field(title='Client Reference')] = None
+    """
+    Your identifier from the submission.
+    """
 
 
 class UserLabel(RootModel[str]):
@@ -893,37 +2005,109 @@ class MotifDetail(BaseModel):
         extra='allow',
     )
     id: Annotated[int, Field(title='Id')]
+    """
+    Row id.
+    """
     key_hex: Annotated[str, Field(title='Key Hex')]
     """
     The 16-byte motif key as 32 hex characters; the `{key}` of the detail route.
     """
     kind: Annotated[str, Field(title='Kind')]
+    """
+    bond, angle or dihedral.
+    """
     depth: Annotated[int, Field(title='Depth')]
+    """
+    Environment depth: 0 is the core atoms alone, 3 the widest.
+    """
     fragment: Annotated[Optional[str], Field(title='Fragment')] = None
+    """
+    The chemical environment, as a fragment string.
+    """
     parent_id: Annotated[Optional[int], Field(title='Parent Id')] = None
+    """
+    The motif one depth shallower; null at the root.
+    """
     n: Annotated[Optional[int], Field(title='N')] = None
+    """
+    Member instances in the corpus.
+    """
     n_k: Annotated[Optional[int], Field(title='N K')] = None
     """
     Members with a Hessian-derived force constant.
     """
     n_by_level: Annotated[Any, Field(title='N By Level')] = None
+    """
+    Members per QM level.
+    """
     value_median: Annotated[Optional[float], Field(title='Value Median')] = None
+    """
+    Median value, in `units` for the kind (bond nm, angle degrees, dihedral kJ/mol).
+    """
     value_iqr: Annotated[Optional[float], Field(title='Value Iqr')] = None
+    """
+    Interquartile range of the value (same units).
+    """
     value_p001: Annotated[Optional[float], Field(title='Value P001')] = None
+    """
+    0.1st percentile of the value (same units).
+    """
     value_p999: Annotated[Optional[float], Field(title='Value P999')] = None
+    """
+    99.9th percentile of the value (same units).
+    """
     k_median: Annotated[Optional[float], Field(title='K Median')] = None
+    """
+    Median Hessian-derived force constant (IFP units for the kind).
+    """
     k_iqr: Annotated[Optional[float], Field(title='K Iqr')] = None
+    """
+    Interquartile range of the force constant.
+    """
     r_max: Annotated[Optional[float], Field(title='R Max')] = None
+    """
+    Bonds: the longest length still counted as bonded (nm).
+    """
     r_min: Annotated[Optional[float], Field(title='R Min')] = None
+    """
+    Bonds: the shortest observed length (nm).
+    """
     linear: Annotated[Optional[bool], Field(title='Linear')] = None
+    """
+    Angles: typed linear (median near 180 degrees).
+    """
     residual_iqr_max: Annotated[Optional[float], Field(title='Residual Iqr Max')] = None
+    """
+    Dihedrals: the largest residual spread over the profile (kJ/mol).
+    """
     build_id: Annotated[int, Field(title='Build Id')]
+    """
+    The library build it belongs to.
+    """
     first_seen: Annotated[Any, Field(title='First Seen')] = None
+    """
+    When the motif first appeared.
+    """
     bond_order_hist: Annotated[Any, Field(title='Bond Order Hist')] = None
+    """
+    Bonds: histogram of bond orders among members.
+    """
     terms: Annotated[Any, Field(title='Terms')] = None
+    """
+    Dihedrals: the fitted torsion terms.
+    """
     residual_profile: Annotated[Any, Field(title='Residual Profile')] = None
+    """
+    Dihedrals: the pooled residual energy profile (kJ/mol against degrees).
+    """
     sin_allowed: Annotated[Any, Field(title='Sin Allowed')] = None
+    """
+    Dihedrals: whether sine terms were allowed in the fit.
+    """
     stereo: Annotated[Any, Field(title='Stereo')] = None
+    """
+    Stereo configuration counts among members.
+    """
     ladder: Annotated[Dict[str, List[Dict[str, Any]]], Field(title='Ladder')]
     """
     `parents` (walked to the root) and `children` (up to 200, largest first).
@@ -939,32 +2123,181 @@ class MotifSummary(BaseModel):
         extra='allow',
     )
     id: Annotated[int, Field(title='Id')]
+    """
+    Row id.
+    """
     key_hex: Annotated[str, Field(title='Key Hex')]
     """
     The 16-byte motif key as 32 hex characters; the `{key}` of the detail route.
     """
     kind: Annotated[str, Field(title='Kind')]
+    """
+    bond, angle or dihedral.
+    """
     depth: Annotated[int, Field(title='Depth')]
+    """
+    Environment depth: 0 is the core atoms alone, 3 the widest.
+    """
     fragment: Annotated[Optional[str], Field(title='Fragment')] = None
+    """
+    The chemical environment, as a fragment string.
+    """
     parent_id: Annotated[Optional[int], Field(title='Parent Id')] = None
+    """
+    The motif one depth shallower; null at the root.
+    """
     n: Annotated[Optional[int], Field(title='N')] = None
+    """
+    Member instances in the corpus.
+    """
     n_k: Annotated[Optional[int], Field(title='N K')] = None
     """
     Members with a Hessian-derived force constant.
     """
     n_by_level: Annotated[Any, Field(title='N By Level')] = None
+    """
+    Members per QM level.
+    """
     value_median: Annotated[Optional[float], Field(title='Value Median')] = None
+    """
+    Median value, in `units` for the kind (bond nm, angle degrees, dihedral kJ/mol).
+    """
     value_iqr: Annotated[Optional[float], Field(title='Value Iqr')] = None
+    """
+    Interquartile range of the value (same units).
+    """
     value_p001: Annotated[Optional[float], Field(title='Value P001')] = None
+    """
+    0.1st percentile of the value (same units).
+    """
     value_p999: Annotated[Optional[float], Field(title='Value P999')] = None
+    """
+    99.9th percentile of the value (same units).
+    """
     k_median: Annotated[Optional[float], Field(title='K Median')] = None
+    """
+    Median Hessian-derived force constant (IFP units for the kind).
+    """
     k_iqr: Annotated[Optional[float], Field(title='K Iqr')] = None
+    """
+    Interquartile range of the force constant.
+    """
     r_max: Annotated[Optional[float], Field(title='R Max')] = None
+    """
+    Bonds: the longest length still counted as bonded (nm).
+    """
     r_min: Annotated[Optional[float], Field(title='R Min')] = None
+    """
+    Bonds: the shortest observed length (nm).
+    """
     linear: Annotated[Optional[bool], Field(title='Linear')] = None
+    """
+    Angles: typed linear (median near 180 degrees).
+    """
     residual_iqr_max: Annotated[Optional[float], Field(title='Residual Iqr Max')] = None
+    """
+    Dihedrals: the largest residual spread over the profile (kJ/mol).
+    """
     build_id: Annotated[int, Field(title='Build Id')]
+    """
+    The library build it belongs to.
+    """
     first_seen: Annotated[Any, Field(title='First Seen')] = None
+    """
+    When the motif first appeared.
+    """
+
+
+class Notified(BaseModel):
+    model_config = ConfigDict(
+        extra='allow',
+    )
+    molid: Annotated[int, Field(title='Molid')]
+    """
+    The molecule.
+    """
+    sent: Annotated[bool, Field(title='Sent')]
+    """
+    Whether the email was sent.
+    """
+    skipped_reason: Annotated[Optional[str], Field(title='Skipped Reason')] = None
+    """
+    Why not, when not.
+    """
+
+
+class Notify(BaseModel):
+    model_config = ConfigDict(
+        extra='allow',
+    )
+    type: Annotated[Literal[1, 2, 3], Field(title='Type')]
+    """
+    1 partly complete, 2 complete, 3 error.
+    """
+    email: Annotated[Optional[str], Field(title='Email')] = None
+    """
+    If given, must be the submitter.
+    """
+
+
+class MinAtoms(RootModel[int]):
+    root: Annotated[int, Field(ge=0, title='Min Atoms')]
+    """
+    Only molecules with at least this many atoms.
+    """
+
+
+class MaxAtoms(RootModel[int]):
+    root: Annotated[int, Field(ge=0, title='Max Atoms')]
+    """
+    Only molecules with at most this many atoms.
+    """
+
+
+class OfferRequest(BaseModel):
+    model_config = ConfigDict(
+        extra='allow',
+    )
+    n: Annotated[Optional[int], Field(ge=0, le=200, title='N')] = 10
+    """
+    At most this many decks.
+    """
+    qm_levels: Annotated[
+        Optional[List[int]], Field(max_length=3, min_length=1, title='Qm Levels')
+    ] = None
+    """
+    QM levels to offer molecules for (1, 2).
+    """
+    group: Annotated[int, Field(title='Group')]
+    """
+    The runner group (`runner_config_dict`) whose molecules may be offered.
+    """
+    min_atoms: Annotated[Optional[MinAtoms], Field(title='Min Atoms')] = None
+    """
+    Only molecules with at least this many atoms.
+    """
+    max_atoms: Annotated[Optional[MaxAtoms], Field(title='Max Atoms')] = None
+    """
+    Only molecules with at most this many atoms.
+    """
+    sort: Annotated[Optional[Literal['id', 'atoms']], Field(title='Sort')] = 'id'
+    """
+    Order by molid or atom count.
+    """
+    order: Annotated[Optional[Literal['ASC', 'DESC']], Field(title='Order')] = 'ASC'
+    """
+    ASC or DESC.
+    """
+
+
+class OfferedJobs(BaseModel):
+    model_config = ConfigDict(
+        extra='allow',
+    )
+    jobs: Annotated[List[Optional[GamessJob]], Field(title='Jobs')]
+    """
+    null where a deck could not be built (the admins were emailed why), as v0.1 returned it.
+    """
 
 
 class ProblemDetail(BaseModel):
@@ -976,8 +2309,17 @@ class ProblemDetail(BaseModel):
     A stable URI whose last segment is the error slug.
     """
     title: Annotated[str, Field(title='Title')]
+    """
+    A short summary; may change.
+    """
     status: Annotated[int, Field(title='Status')]
+    """
+    The HTTP status.
+    """
     detail: Annotated[Optional[str], Field(title='Detail')] = None
+    """
+    What went wrong in this case.
+    """
     instance: Annotated[Optional[str], Field(title='Instance')] = None
     """
     The request path.
@@ -989,16 +2331,28 @@ class QMLevel(BaseModel):
         extra='allow',
     )
     level: Annotated[str, Field(title='Level')]
+    """
+    qm0, qm1 or qm2.
+    """
     qm_type: Annotated[str, Field(title='Qm Type')]
+    """
+    The method, e.g. `wB97X_631Gd_SMD_water`.
+    """
     charge_method: Annotated[Optional[str], Field(title='Charge Method')] = None
+    """
+    How the partial charges were derived.
+    """
     volume: Annotated[Optional[float], Field(title='Volume')] = None
     """
     As the QM record stores it (Å³).
     """
     n_atoms: Annotated[Optional[int], Field(title='N Atoms')] = None
+    """
+    Atoms in the record.
+    """
     energy: Annotated[Optional[float], Field(title='Energy')] = None
     """
-    qm_energies.energy for this qm_type (kJ/mol, as qm_energies stores it).
+    Lowest total energy stored for this method (kJ/mol).
     """
     contents: Annotated[List[str], Field(title='Contents')]
     """
@@ -1011,7 +2365,13 @@ class QMSummary(BaseModel):
         extra='allow',
     )
     molid: Annotated[int, Field(title='Molid')]
+    """
+    The molecule.
+    """
     levels: Annotated[List[QMLevel], Field(title='Levels')]
+    """
+    One per level with a result.
+    """
 
 
 class BurstPerMin3(RootModel[int]):
@@ -1030,6 +2390,9 @@ class DailyLimit3(RootModel[int]):
 
 class Note(RootModel[str]):
     root: Annotated[str, Field(max_length=2000, title='Note')]
+    """
+    Recorded with the approval.
+    """
 
 
 class QuotaApproval(BaseModel):
@@ -1047,6 +2410,9 @@ class QuotaApproval(BaseModel):
     Omitted: what was asked for.
     """
     note: Annotated[Optional[Note], Field(title='Note')] = None
+    """
+    Recorded with the approval.
+    """
 
 
 class QuotaApproved(BaseModel):
@@ -1054,16 +2420,31 @@ class QuotaApproved(BaseModel):
         extra='allow',
     )
     request_id: Annotated[int, Field(title='Request Id')]
+    """
+    The request approved.
+    """
     approval_id: Annotated[Optional[int], Field(title='Approval Id')] = None
+    """
+    The audit row recording the approval.
+    """
     key: KeyInfo
+    """
+    The key, with its new limits.
+    """
 
 
 class BurstPerMin4(RootModel[int]):
     root: Annotated[int, Field(ge=1, le=100000, title='Burst Per Min')]
+    """
+    Requests per minute wanted.
+    """
 
 
 class DailyLimit4(RootModel[int]):
     root: Annotated[int, Field(ge=1, le=10000000, title='Daily Limit')]
+    """
+    Weighted requests per UTC day wanted.
+    """
 
 
 class QuotaRequest(BaseModel):
@@ -1077,7 +2458,13 @@ class QuotaRequest(BaseModel):
     burst_per_min: Annotated[Optional[BurstPerMin4], Field(title='Burst Per Min')] = (
         None
     )
+    """
+    Requests per minute wanted.
+    """
     daily_limit: Annotated[Optional[DailyLimit4], Field(title='Daily Limit')] = None
+    """
+    Weighted requests per UTC day wanted.
+    """
     reason: Annotated[str, Field(max_length=2000, min_length=1, title='Reason')]
     """
     What the raised limit is for.
@@ -1093,13 +2480,37 @@ class QuotaRequestItem(BaseModel):
     The api_audit row id of the request.
     """
     at: Annotated[Optional[str], Field(title='At')] = None
+    """
+    When it was asked (UTC).
+    """
     key_id: Annotated[Optional[int], Field(title='Key Id')] = None
+    """
+    The key to raise.
+    """
     user_email: Annotated[Optional[str], Field(title='User Email')] = None
+    """
+    Who asked.
+    """
     burst_per_min: Annotated[Optional[int], Field(title='Burst Per Min')] = None
+    """
+    Requested burst limit, per minute.
+    """
     daily_limit: Annotated[Optional[int], Field(title='Daily Limit')] = None
+    """
+    Requested daily limit (weighted, per UTC day).
+    """
     reason: Annotated[Optional[str], Field(title='Reason')] = None
+    """
+    What the asker said it is for.
+    """
     status: Annotated[Literal['pending', 'approved'], Field(title='Status')]
+    """
+    pending or approved.
+    """
     approval: Annotated[Optional[Dict[str, Any]], Field(title='Approval')] = None
+    """
+    Once approved: `{id, at, by, applied}`.
+    """
 
 
 class QuotaRequestPage(BaseModel):
@@ -1107,7 +2518,13 @@ class QuotaRequestPage(BaseModel):
         extra='allow',
     )
     items: Annotated[List[QuotaRequestItem], Field(title='Items')]
+    """
+    Requests, newest first.
+    """
     next_cursor: Annotated[Optional[str], Field(title='Next Cursor')] = None
+    """
+    Pass as `cursor` for the next page; null on the last.
+    """
 
 
 class QuotaRequestReceived(BaseModel):
@@ -1115,7 +2532,13 @@ class QuotaRequestReceived(BaseModel):
         extra='allow',
     )
     status: Annotated[Optional[str], Field(title='Status')] = 'received'
+    """
+    Always `received`.
+    """
     key_id: Annotated[int, Field(title='Key Id')]
+    """
+    The key it is for.
+    """
 
 
 class RMSDInput(BaseModel):
@@ -1123,7 +2546,13 @@ class RMSDInput(BaseModel):
         extra='allow',
     )
     index: Annotated[int, Field(title='Index')]
+    """
+    Position in the RMSD matrix.
+    """
     molid: Annotated[Optional[int], Field(title='Molid')] = None
+    """
+    The molecule, for a molid input.
+    """
     source: Annotated[str, Field(title='Source')]
     """
     uploaded | pdb_allatom_optimised | pdb_normalised
@@ -1151,6 +2580,9 @@ class RMSDResult(BaseModel):
         extra='allow',
     )
     inputs: Annotated[List[RMSDInput], Field(title='Inputs')]
+    """
+    What each row/column of the matrix is.
+    """
     rmsd_matrix: Annotated[List[List[Optional[float]]], Field(title='Rmsd Matrix')]
     """
     Pairwise RMSD in nm after optimal alignment; null where the two molecular graphs do not match (including a different tautomer).
@@ -1178,6 +2610,9 @@ class RemapRequest(BaseModel):
     structure: Annotated[
         str, Field(max_length=1048576, min_length=1, title='Structure')
     ]
+    """
+    Your structure of this molecule, as text (at most 1 MiB).
+    """
     format: Annotated[
         Optional[Literal['pdb', 'mol', 'sdf', 'mdl', 'molblock']], Field(title='Format')
     ] = None
@@ -1187,19 +2622,34 @@ class RemapRequest(BaseModel):
     mode: Annotated[
         Optional[Literal['all_atom', 'heavy_atom']], Field(title='Mode')
     ] = None
+    """
+    Match every atom, or heavy atoms only (hydrogens then follow the ATB). Default: all_atom if your structure has hydrogens.
+    """
     names: Annotated[Optional[Literal['query', 'reference']], Field(title='Names')] = (
         'query'
     )
+    """
+    Atom names: yours (`query`) or the ATB's.
+    """
     coords: Annotated[
         Optional[Literal['query', 'reference']], Field(title='Coords')
     ] = 'query'
+    """
+    Coordinates: yours (`query`) or the ATB's.
+    """
     outputs: Annotated[
         Optional[
             List[Literal['g96', 'itp', 'mtb', 'param_cns', 'pdb', 'pqr', 'top_cns']]
         ],
         Field(min_length=1, title='Outputs'),
     ] = None
+    """
+    Formats to write.
+    """
     united: Annotated[Optional[bool], Field(title='United')] = False
+    """
+    United-atom outputs instead of all-atom.
+    """
 
 
 class ScanCancelled(BaseModel):
@@ -1207,8 +2657,17 @@ class ScanCancelled(BaseModel):
         extra='allow',
     )
     scan_request_id: Annotated[int, Field(title='Scan Request Id')]
+    """
+    The request.
+    """
     molid: Annotated[int, Field(title='Molid')]
+    """
+    The molecule.
+    """
     status: Annotated[Optional[str], Field(title='Status')] = 'cancelled'
+    """
+    Always `cancelled`.
+    """
 
 
 class ScanQueued(BaseModel):
@@ -1216,17 +2675,44 @@ class ScanQueued(BaseModel):
         extra='allow',
     )
     scan_request_id: Annotated[int, Field(title='Scan Request Id')]
+    """
+    The request; cancel with it.
+    """
     dihedral_run_id: Annotated[int, Field(title='Dihedral Run Id')]
+    """
+    The run id the archetype will be filed under.
+    """
     molid: Annotated[int, Field(title='Molid')]
+    """
+    The molecule.
+    """
     dihedral_atoms: Annotated[str, Field(title='Dihedral Atoms')]
+    """
+    The four atom serials, comma-separated.
+    """
     method: Annotated[str, Field(title='Method')]
+    """
+    QM method.
+    """
     mode: Annotated[str, Field(title='Mode')]
+    """
+    Scan mode.
+    """
     execution: Annotated[str, Field(title='Execution')]
+    """
+    Where it runs.
+    """
     status: Annotated[Optional[str], Field(title='Status')] = 'queued'
+    """
+    Always `queued`.
+    """
 
 
 class DihedralLabel(RootModel[str]):
     root: Annotated[str, Field(max_length=255, title='Dihedral Label')]
+    """
+    A free-text label.
+    """
 
 
 class ScanRequest(BaseModel):
@@ -1243,9 +2729,15 @@ class ScanRequest(BaseModel):
         Literal['gfn2', 'wb97x_631gd', 'wb97x_631gd_smd_water', 'wb97x_d3bj_631gd'],
         Field(title='Method'),
     ]
+    """
+    QM method of the scan.
+    """
     mode: Annotated[
         Optional[Literal['relaxed', 'partial', 'rigid']], Field(title='Mode')
     ] = 'partial'
+    """
+    relaxed, partial (other torsions frozen) or rigid.
+    """
     execution: Annotated[
         Optional[Literal['local', 'setonix', 'gadi']], Field(title='Execution')
     ] = None
@@ -1255,10 +2747,25 @@ class ScanRequest(BaseModel):
     dihedral_label: Annotated[
         Optional[DihedralLabel], Field(title='Dihedral Label')
     ] = None
+    """
+    A free-text label.
+    """
     priority: Annotated[Optional[int], Field(title='Priority')] = 0
+    """
+    Higher runs sooner.
+    """
     grid_start: Annotated[Optional[float], Field(title='Grid Start')] = -165.0
+    """
+    First angle (degrees).
+    """
     grid_stop: Annotated[Optional[float], Field(title='Grid Stop')] = 180.0
+    """
+    Last angle (degrees).
+    """
     grid_increment: Annotated[Optional[float], Field(title='Grid Increment')] = 15.0
+    """
+    Step (degrees).
+    """
 
 
 class SetChange(BaseModel):
@@ -1266,7 +2773,13 @@ class SetChange(BaseModel):
         extra='allow',
     )
     add: Annotated[Optional[List[str]], Field(title='Add')] = None
+    """
+    Names to add.
+    """
     remove: Annotated[Optional[List[str]], Field(title='Remove')] = None
+    """
+    Names to remove.
+    """
 
 
 class SolvationResult(BaseModel):
@@ -1274,17 +2787,35 @@ class SolvationResult(BaseModel):
         extra='allow',
     )
     id: Annotated[int, Field(title='Id')]
+    """
+    Result id.
+    """
     solvent: Annotated[Optional[str], Field(title='Solvent')] = None
+    """
+    Solvent.
+    """
     method: Annotated[Optional[str], Field(title='Method')] = None
+    """
+    Calculation method.
+    """
     value: Annotated[Optional[float], Field(title='Value')] = None
     """
-    kJ/mol
+    Solvation free energy (kJ/mol).
     """
     uncertainty: Annotated[Optional[float], Field(title='Uncertainty')] = None
+    """
+    Its uncertainty (kJ/mol).
+    """
     target_uncertainty: Annotated[
         Optional[float], Field(title='Target Uncertainty')
     ] = None
+    """
+    The uncertainty the calculation ran to (kJ/mol).
+    """
     completed_at: Annotated[Optional[str], Field(title='Completed At')] = None
+    """
+    When it finished (UTC).
+    """
     topology_hash: Annotated[Optional[str], Field(title='Topology Hash')] = None
     """
     The topology the calculation consumed, which need not be the current one.
@@ -1294,6 +2825,9 @@ class SolvationResult(BaseModel):
     The newest result for this solvent and method.
     """
     experimental: Optional[ExperimentalValue] = None
+    """
+    The experimental value for this solvent, if any.
+    """
 
 
 class StalledItem(BaseModel):
@@ -1301,9 +2835,21 @@ class StalledItem(BaseModel):
         extra='allow',
     )
     molid: Annotated[int, Field(title='Molid')]
+    """
+    The molecule.
+    """
     atoms: Annotated[Optional[int], Field(title='Atoms')] = None
+    """
+    Atom count.
+    """
     owner: Annotated[Optional[str], Field(title='Owner')] = None
+    """
+    The owner's email.
+    """
     status: MoleculeStatus
+    """
+    Its status, with why it is stalled in `detail`.
+    """
 
 
 class StalledPage(BaseModel):
@@ -1311,11 +2857,17 @@ class StalledPage(BaseModel):
         extra='allow',
     )
     items: Annotated[List[StalledItem], Field(title='Items')]
+    """
+    Stalled molecules among those scanned.
+    """
     scanned: Annotated[int, Field(title='Scanned')]
     """
     Candidate molecules examined for this page.
     """
     next_cursor: Annotated[Optional[str], Field(title='Next Cursor')] = None
+    """
+    Pass as `cursor` to continue the scan; null at the end.
+    """
 
 
 class StatisticPoint(BaseModel):
@@ -1323,8 +2875,17 @@ class StatisticPoint(BaseModel):
         extra='allow',
     )
     date: Annotated[date, Field(title='Date')]
+    """
+    The day recorded.
+    """
     value: Annotated[Optional[float], Field(title='Value')] = None
+    """
+    The value, in the indicator's `unit`.
+    """
     sample_size: Annotated[Optional[int], Field(title='Sample Size')] = None
+    """
+    Molecules it was computed over.
+    """
 
 
 class StructureMatch(BaseModel):
@@ -1332,12 +2893,21 @@ class StructureMatch(BaseModel):
         extra='allow',
     )
     molid: Annotated[int, Field(title='Molid')]
+    """
+    The matching molecule.
+    """
     rmsd: Annotated[Optional[float], Field(title='Rmsd')] = None
     """
     Blind-RMSD in nm after optimal alignment; null when the search budget ran out before this candidate was aligned.
     """
     is_identical: Annotated[bool, Field(title='Is Identical')]
+    """
+    Close enough that submitting the structure would be a duplicate.
+    """
     compared: Annotated[bool, Field(title='Compared')]
+    """
+    False if the search ran out of time before aligning it.
+    """
 
 
 class StructureSearchRequest(BaseModel):
@@ -1347,14 +2917,23 @@ class StructureSearchRequest(BaseModel):
     structure: Annotated[
         str, Field(max_length=5000000, min_length=1, title='Structure')
     ]
+    """
+    The structure as text.
+    """
     format: Annotated[
         Optional[Literal['pdb', 'sdf', 'mol', 'mol2', 'smiles']], Field(title='Format')
     ] = 'pdb'
+    """
+    The format of `structure`.
+    """
     netcharge: Annotated[Union[int, str], Field(title='Netcharge')]
     """
     An integer, or '*' for any charge.
     """
     limit: Annotated[Optional[int], Field(ge=1, le=200, title='Limit')] = 20
+    """
+    At most this many matches.
+    """
 
 
 class StructureSearchResult(BaseModel):
@@ -1362,9 +2941,21 @@ class StructureSearchResult(BaseModel):
         extra='allow',
     )
     search_molecule: Annotated[Dict[str, Optional[str]], Field(title='Search Molecule')]
+    """
+    The uploaded structure's `inchi` and `inchi_key`.
+    """
     matches: Annotated[List[StructureMatch], Field(title='Matches')]
+    """
+    Closest first.
+    """
     total_matches: Annotated[int, Field(title='Total Matches')]
+    """
+    Length of `matches`.
+    """
     uncompared: Annotated[int, Field(title='Uncompared')]
+    """
+    Candidates not aligned in time.
+    """
     complete: Annotated[bool, Field(title='Complete')]
     """
     False when the ~105 s budget left candidates unaligned.
@@ -1375,6 +2966,13 @@ class MaxQmLevel2(RootModel[int]):
     root: Annotated[int, Field(ge=0, le=2, title='Max Qm Level')]
     """
     Lower the QM ceiling below the size-derived default. Only admin and service keys may raise it.
+    """
+
+
+class ClientReference1(RootModel[str]):
+    root: Annotated[str, Field(max_length=128, title='Client Reference')]
+    """
+    Your own identifier, returned with the molecule.
     """
 
 
@@ -1399,13 +2997,16 @@ class SubmissionRequest(BaseModel):
         ],
         Field(title='Moltype'),
     ] = 'heteromolecule'
+    """
+    The kind of molecule, as on the submission form.
+    """
     max_qm_level: Annotated[Optional[MaxQmLevel2], Field(title='Max Qm Level')] = None
     """
     Lower the QM ceiling below the size-derived default. Only admin and service keys may raise it.
     """
     callback_url: Annotated[Optional[CallbackUrl], Field(title='Callback Url')] = None
     """
-    Stored with the submission; events are delivered from a later release (plan WP6). Polling is the baseline.
+    POSTed molecule.finished / molecule.failed / topology.regenerated events, signed with the `callback_secret` the response returns once. Port 80 or 443 only. Polling is the baseline.
     """
     dry_run: Annotated[Optional[bool], Field(title='Dry Run')] = False
     """
@@ -1414,13 +3015,47 @@ class SubmissionRequest(BaseModel):
     structure: Annotated[
         str, Field(max_length=5000000, min_length=1, title='Structure')
     ]
+    """
+    The structure as text: a file's contents, or a SMILES string.
+    """
     format: Annotated[
         Optional[Literal['pdb', 'sdf', 'mol', 'mol2', 'smiles']], Field(title='Format')
     ] = 'pdb'
+    """
+    The format of `structure`.
+    """
     netcharge: Annotated[int, Field(ge=-20, le=20, title='Netcharge')]
+    """
+    Net charge of the molecule (e).
+    """
     client_reference: Annotated[
-        Optional[ClientReference], Field(title='Client Reference')
+        Optional[ClientReference1], Field(title='Client Reference')
     ] = None
+    """
+    Your own identifier, returned with the molecule.
+    """
+
+
+class SyncReport(BaseModel):
+    model_config = ConfigDict(
+        extra='allow',
+    )
+    running: Annotated[List[int], Field(title='Running')]
+    """
+    Running on the runner and claimed here.
+    """
+    unknown: Annotated[List[int], Field(title='Unknown')]
+    """
+    Running on the runner, not claimed here.
+    """
+    failed: Annotated[List[int], Field(title='Failed')]
+    """
+    Reported failed by the runner; released here.
+    """
+    lost: Annotated[List[int], Field(title='Lost')]
+    """
+    Claimed here, not running on the runner.
+    """
 
 
 class TautomerGroupMember(BaseModel):
@@ -1428,14 +3063,29 @@ class TautomerGroupMember(BaseModel):
         extra='allow',
     )
     molid: Annotated[int, Field(title='Molid')]
+    """
+    The molecule.
+    """
     compound_id: Annotated[int, Field(title='Compound Id')]
+    """
+    Its compound.
+    """
     inchi_key: Annotated[Optional[str], Field(title='Inchi Key')] = None
     """
     The standard InChIKey (`compounds.external_inchi_key`).
     """
     formula: Annotated[Optional[str], Field(title='Formula')] = None
+    """
+    Molecular formula.
+    """
     netcharge: Annotated[Optional[int], Field(title='Netcharge')] = None
+    """
+    Net charge (e).
+    """
     qm_level: Annotated[Optional[int], Field(title='Qm Level')] = None
+    """
+    Highest QM level reached.
+    """
     energies: Annotated[Dict[str, float], Field(title='Energies')]
     """
     The lowest stored energy per QM method (`qm_energies.qm_type`), in kJ/mol (absolute electronic energies).
@@ -1447,14 +3097,32 @@ class TautomerMember(BaseModel):
         extra='allow',
     )
     molid: Annotated[int, Field(title='Molid')]
+    """
+    The molecule.
+    """
     compound_id: Annotated[Optional[int], Field(title='Compound Id')] = None
+    """
+    Its compound.
+    """
     inchi_key: Annotated[Optional[str], Field(title='Inchi Key')] = None
+    """
+    Standard InChIKey.
+    """
     formula: Annotated[Optional[str], Field(title='Formula')] = None
+    """
+    Molecular formula.
+    """
     netcharge: Annotated[Optional[int], Field(title='Netcharge')] = None
+    """
+    Net charge (e).
+    """
     qm_level: Annotated[Optional[int], Field(title='Qm Level')] = None
+    """
+    Highest QM level reached.
+    """
     energies: Annotated[Dict[str, float], Field(title='Energies')]
     """
-    Lowest energy per qm_type (kJ/mol, as qm_energies stores it).
+    Lowest total energy per QM method (kJ/mol).
     """
 
 
@@ -1463,12 +3131,21 @@ class Tautomers(BaseModel):
         extra='allow',
     )
     molid: Annotated[int, Field(title='Molid')]
+    """
+    The molecule asked about.
+    """
     grouping: Annotated[Optional[str], Field(title='Grouping')] = None
     """
     skeleton_key | tautomer_group_id | null (no group).
     """
     group: Annotated[Optional[str], Field(title='Group')] = None
+    """
+    The group id: a skeleton key or a tautomer_group_id.
+    """
     members: Annotated[List[TautomerMember], Field(title='Members')]
+    """
+    The visible members.
+    """
 
 
 class TopologyVersionInfo(BaseModel):
@@ -1476,10 +3153,25 @@ class TopologyVersionInfo(BaseModel):
         extra='allow',
     )
     hash: Annotated[str, Field(title='Hash')]
+    """
+    The version; pass as `?hash=`.
+    """
     forcefield: Annotated[str, Field(title='Forcefield')]
+    """
+    Its force field.
+    """
     generated_at: Annotated[Optional[str], Field(title='Generated At')] = None
+    """
+    When it was built (UTC).
+    """
     atb_version: Annotated[str, Field(title='Atb Version')]
+    """
+    The ATB code version that built it.
+    """
     current: Annotated[bool, Field(title='Current')]
+    """
+    It is the version served by default.
+    """
 
 
 class Usage(BaseModel):
@@ -1491,13 +3183,25 @@ class Usage(BaseModel):
     The UTC day the counters are for.
     """
     key_id: Annotated[Optional[int], Field(title='Key Id')] = None
+    """
+    The calling key.
+    """
     weight: Annotated[int, Field(title='Weight')]
     """
     This key's weighted requests today.
     """
     daily_limit: Annotated[Optional[int], Field(title='Daily Limit')] = None
+    """
+    Its daily limit; null: not limited.
+    """
     daily_remaining: Annotated[Optional[int], Field(title='Daily Remaining')] = None
+    """
+    What is left today; null: not limited.
+    """
     burst_per_min: Annotated[Optional[int], Field(title='Burst Per Min')] = None
+    """
+    Its burst limit per minute; null: not limited.
+    """
     keys: Annotated[Optional[List[KeyUsage]], Field(title='Keys')] = None
     """
     Every one of the account's keys used today.
@@ -1509,11 +3213,29 @@ class UsageRow(BaseModel):
         extra='allow',
     )
     key_id: Annotated[int, Field(title='Key Id')]
+    """
+    The key.
+    """
     prefix: Annotated[Optional[str], Field(title='Prefix')] = None
+    """
+    Its public prefix.
+    """
     principal: Annotated[Optional[str], Field(title='Principal')] = None
+    """
+    user, service or root.
+    """
     name: Annotated[Optional[str], Field(title='Name')] = None
+    """
+    Its label.
+    """
     user_email: Annotated[Optional[str], Field(title='User Email')] = None
+    """
+    Its account, for a user key.
+    """
     weight: Annotated[int, Field(title='Weight')]
+    """
+    Weighted requests that day.
+    """
 
 
 class VacuumValidation(BaseModel):
@@ -1521,10 +3243,25 @@ class VacuumValidation(BaseModel):
         extra='allow',
     )
     rmsd_nm: Annotated[Optional[float], Field(title='Rmsd Nm')] = None
+    """
+    RMSD between the QM and minimised geometries (nm); null if none.
+    """
     failure: Annotated[Optional[str], Field(title='Failure')] = None
+    """
+    Why the minimisation failed, if it did.
+    """
     note: Annotated[Optional[str], Field(title='Note')] = None
+    """
+    Why there is no RMSD, if there is none.
+    """
     topology_hash: Annotated[Optional[str], Field(title='Topology Hash')] = None
+    """
+    The topology it was measured with.
+    """
     completed_at: Annotated[Optional[str], Field(title='Completed At')] = None
+    """
+    When it was measured (UTC).
+    """
     superposition: Annotated[Optional[Dict[str, str]], Field(title='Superposition')] = (
         None
     )
@@ -1538,18 +3275,74 @@ class Validation(BaseModel):
         extra='allow',
     )
     molid: Annotated[int, Field(title='Molid')]
+    """
+    The molecule.
+    """
     emin_vac: VacuumValidation
+    """
+    The vacuum energy-minimisation check.
+    """
 
 
-class ValidationError(BaseModel):
+class TopologyHash(RootModel[str]):
+    root: Annotated[str, Field(max_length=64, title='Topology Hash')]
+    """
+    The topology validated.
+    """
+
+
+class ValidationRow(BaseModel):
     model_config = ConfigDict(
         extra='allow',
     )
-    loc: Annotated[List[Union[str, int]], Field(title='Location')]
-    msg: Annotated[str, Field(title='Message')]
-    type: Annotated[str, Field(title='Error Type')]
-    input: Annotated[Optional[Any], Field(title='Input')] = None
-    ctx: Annotated[Optional[Dict[str, Any]], Field(title='Context')] = None
+    qm_level: Annotated[Optional[int], Field(title='Qm Level')] = -1
+    """
+    The QM level validated; -1 for none.
+    """
+    value: Annotated[Optional[str], Field(title='Value')] = None
+    """
+    The result, as text (EMinVac: RMSD in nm).
+    """
+    uncertainty: Annotated[Optional[str], Field(title='Uncertainty')] = None
+    """
+    Its uncertainty, as text.
+    """
+    topology_hash: Annotated[Optional[TopologyHash], Field(title='Topology Hash')] = (
+        None
+    )
+    """
+    The topology validated.
+    """
+    completed: Annotated[Optional[bool], Field(title='Completed')] = True
+    """
+    Stamp completed = NOW().
+    """
+    overwrite: Annotated[Optional[bool], Field(title='Overwrite')] = True
+    """
+    false: fill only a row whose sent columns are all NULL.
+    """
+
+
+class ValidationStored(BaseModel):
+    model_config = ConfigDict(
+        extra='allow',
+    )
+    molid: Annotated[int, Field(title='Molid')]
+    """
+    The molecule.
+    """
+    kind: Annotated[str, Field(title='Kind')]
+    """
+    The validation type.
+    """
+    files: Annotated[List[FileWritten], Field(title='Files')]
+    """
+    The files, in request order.
+    """
+    row: Annotated[Optional[Dict[str, Any]], Field(title='Row')] = None
+    """
+    The row as written; null if none was sent.
+    """
 
 
 class AdminUserDetail(BaseModel):
@@ -1557,13 +3350,37 @@ class AdminUserDetail(BaseModel):
         extra='allow',
     )
     id: Annotated[int, Field(title='Id')]
+    """
+    The account id.
+    """
     email: Annotated[str, Field(title='Email')]
+    """
+    The login email.
+    """
     fullname: Annotated[Optional[str], Field(title='Fullname')] = None
+    """
+    Name as registered.
+    """
     institute: Annotated[Optional[str], Field(title='Institute')] = None
+    """
+    Institute as registered.
+    """
     user_class: Annotated[int, Field(title='User Class')]
+    """
+    1 pending commercial, 2 academic, 3 commercial, 4 partner, 5 administrator, 6 partner with QM logs.
+    """
     group_id: Annotated[Optional[int], Field(title='Group Id')] = None
+    """
+    The account's group; 1 is the public (academic) group.
+    """
     expiry: Annotated[Optional[date], Field(title='Expiry')] = None
+    """
+    Last day the account is active; null: no expiry.
+    """
     keys: Annotated[Optional[List[KeyInfo]], Field(title='Keys')] = None
+    """
+    Every key of the account.
+    """
     molecules: Annotated[Optional[int], Field(title='Molecules')] = 0
     """
     Molecules the account owns.
@@ -1575,7 +3392,13 @@ class ArchetypePage(BaseModel):
         extra='allow',
     )
     items: Annotated[List[ArchetypeRow], Field(title='Items')]
+    """
+    Archetypes, by molid then run.
+    """
     next_cursor: Annotated[Optional[str], Field(title='Next Cursor')] = None
+    """
+    Pass as `cursor` for the next page; null on the last.
+    """
     total: Annotated[int, Field(title='Total')]
     """
     Archetypes matching the filters.
@@ -1591,11 +3414,20 @@ class AuditPage(BaseModel):
         extra='allow',
     )
     items: Annotated[List[AuditRow], Field(title='Items')]
+    """
+    Rows, newest first.
+    """
     next_cursor: Annotated[Optional[str], Field(title='Next Cursor')] = None
+    """
+    Pass as `cursor` for the next page; null on the last.
+    """
 
 
 class Structures(RootModel[List[BatchStructure]]):
     root: Annotated[List[BatchStructure], Field(max_length=100, title='Structures')]
+    """
+    Up to 100 structures. Give this or `sdf`.
+    """
 
 
 class BatchRequest(BaseModel):
@@ -1619,22 +3451,28 @@ class BatchRequest(BaseModel):
         ],
         Field(title='Moltype'),
     ] = 'heteromolecule'
+    """
+    The kind of molecule, as on the submission form.
+    """
     max_qm_level: Annotated[Optional[MaxQmLevel], Field(title='Max Qm Level')] = None
     """
     Lower the QM ceiling below the size-derived default. Only admin and service keys may raise it.
     """
     callback_url: Annotated[Optional[CallbackUrl], Field(title='Callback Url')] = None
     """
-    Stored with the submission; events are delivered from a later release (plan WP6). Polling is the baseline.
+    POSTed molecule.finished / molecule.failed / topology.regenerated events, signed with the `callback_secret` the response returns once. Port 80 or 443 only. Polling is the baseline.
     """
     dry_run: Annotated[Optional[bool], Field(title='Dry Run')] = False
     """
     Validate, convert and run the duplicate check, but insert nothing.
     """
     structures: Annotated[Optional[Structures], Field(title='Structures')] = None
+    """
+    Up to 100 structures. Give this or `sdf`.
+    """
     sdf: Annotated[Optional[Sdf], Field(title='Sdf')] = None
     """
-    A multi-record SDF, split on `$$$$`. At most 100 records.
+    A multi-record SDF, split on `$$$$`. At most 100 records. Give this or `structures`.
     """
     netcharge_field: Annotated[
         Optional[str], Field(max_length=64, title='Netcharge Field')
@@ -1667,12 +3505,21 @@ class Forcefield(BaseModel):
     The IFP formats held for it, lower case.
     """
     mtb_formats: Annotated[List[str], Field(title='Mtb Formats')]
+    """
+    The building-block (MTB) formats held for it.
+    """
     available: Annotated[bool, Field(title='Available')]
     """
     Whether ATB builds topologies with it (`AVAILABLE_FORCEFIELDS`).
     """
     default: Annotated[bool, Field(title='Default')]
+    """
+    Whether it is the site default.
+    """
     links: ForcefieldLinks
+    """
+    Where to download each file.
+    """
 
 
 class ForcefieldList(BaseModel):
@@ -1680,19 +3527,21 @@ class ForcefieldList(BaseModel):
         extra='allow',
     )
     items: Annotated[List[Forcefield], Field(title='Items')]
+    """
+    The force fields.
+    """
     next_cursor: Annotated[Optional[str], Field(title='Next Cursor')] = None
     """
     Always null: the list is short.
     """
     total: Annotated[int, Field(title='Total')]
+    """
+    Length of `items`.
+    """
     default_forcefield: Annotated[str, Field(title='Default Forcefield')]
-
-
-class HTTPValidationError(BaseModel):
-    model_config = ConfigDict(
-        extra='allow',
-    )
-    detail: Annotated[Optional[List[ValidationError]], Field(title='Detail')] = None
+    """
+    The site default force field.
+    """
 
 
 class Indicator(BaseModel):
@@ -1700,8 +3549,17 @@ class Indicator(BaseModel):
         extra='allow',
     )
     name: Annotated[str, Field(title='Name')]
+    """
+    Indicator name, e.g. `vacuum_em_median_rmsd`.
+    """
     unit: Annotated[Optional[str], Field(title='Unit')] = None
+    """
+    Unit of its values, e.g. `nm`.
+    """
     latest: Optional[StatisticPoint] = None
+    """
+    Its latest point.
+    """
 
 
 class IndicatorSeries(BaseModel):
@@ -1709,10 +3567,30 @@ class IndicatorSeries(BaseModel):
         extra='allow',
     )
     name: Annotated[str, Field(title='Name')]
+    """
+    Indicator name.
+    """
     unit: Annotated[Optional[str], Field(title='Unit')] = None
+    """
+    Unit of its values.
+    """
     points: Annotated[List[StatisticPoint], Field(title='Points')]
     """
     The last 365 recorded points, oldest first.
+    """
+
+
+class LogBatch(BaseModel):
+    model_config = ConfigDict(
+        extra='allow',
+    )
+    items: Annotated[List[LogItem], Field(max_length=8, min_length=1, title='Items')]
+    """
+    1 to 8 logs.
+    """
+    can_update_db: Annotated[Optional[bool], Field(title='Can Update Db')] = True
+    """
+    v0.1's flag: false keeps a failed legacy qm0 log from finishing the molecule.
     """
 
 
@@ -1721,34 +3599,91 @@ class Molecule(BaseModel):
         extra='allow',
     )
     molid: Annotated[int, Field(title='Molid')]
+    """
+    The molecule id.
+    """
     inchi_key: Annotated[Optional[str], Field(title='Inchi Key')] = None
     """
     The standard InChIKey.
     """
     common_name: Annotated[Optional[str], Field(title='Common Name')] = None
+    """
+    Common name.
+    """
     iupac: Annotated[Optional[str], Field(title='Iupac')] = None
+    """
+    IUPAC name.
+    """
     formula: Annotated[Optional[str], Field(title='Formula')] = None
+    """
+    Molecular formula.
+    """
     atoms: Annotated[Optional[int], Field(title='Atoms')] = None
+    """
+    Atom count, hydrogens included.
+    """
     netcharge: Annotated[Optional[int], Field(title='Netcharge')] = None
+    """
+    Net charge (e).
+    """
     moltype: Annotated[Optional[str], Field(title='Moltype')] = None
+    """
+    Molecule type, e.g. `heteromolecule`.
+    """
     rnme: Annotated[Optional[str], Field(title='Rnme')] = None
     """
     The residue name.
     """
     compound_id: Annotated[Optional[int], Field(title='Compound Id')] = None
+    """
+    The compound: every molecule of one chemical identity.
+    """
     chembl_id: Annotated[Optional[str], Field(title='Chembl Id')] = None
+    """
+    ChEMBL id.
+    """
     pdb_hetid: Annotated[Optional[str], Field(title='Pdb Hetid')] = None
+    """
+    PDB ligand id.
+    """
     public: Annotated[bool, Field(title='Public')]
+    """
+    Visible to everyone.
+    """
     scheduled_for_deletion: Annotated[
         Optional[bool], Field(title='Scheduled For Deletion')
     ] = False
+    """
+    The owner asked for it to be deleted.
+    """
     qm_level: Annotated[int, Field(title='Qm Level')]
+    """
+    Highest QM level completed; -1 for none.
+    """
     maximum_qm_level: Annotated[int, Field(title='Maximum Qm Level')]
+    """
+    The highest QM level it will get.
+    """
     curation_trust: Annotated[Optional[int], Field(title='Curation Trust')] = None
+    """
+    0 generated by the ATB; 1 or 2 manually curated; -1 failed.
+    """
     is_finished: Annotated[bool, Field(title='Is Finished')]
+    """
+    Processing has finished.
+    """
     has_error: Annotated[bool, Field(title='Has Error')]
+    """
+    Processing failed.
+    """
     submitted_at: Annotated[Optional[str], Field(title='Submitted At')] = None
+    """
+    When it was submitted (UTC).
+    """
     finished_at: Annotated[Optional[str], Field(title='Finished At')] = None
+    """
+    When it finished (UTC).
+    """
     inchi: Annotated[Optional[str], Field(title='Inchi')] = None
     """
     The standard InChI.
@@ -1760,23 +3695,53 @@ class Molecule(BaseModel):
     The non-standard (FixedH) InChIKey ATB keys tautomers by.
     """
     smiles: Annotated[Optional[str], Field(title='Smiles')] = None
+    """
+    SMILES.
+    """
     chemspider_id: Annotated[Optional[int], Field(title='Chemspider Id')] = None
+    """
+    ChemSpider id.
+    """
     tautomer_group_id: Annotated[Optional[int], Field(title='Tautomer Group Id')] = None
     """
     The legacy, stereo-blind tautomer grouping.
     """
     user_label: Annotated[Optional[str], Field(title='User Label')] = None
+    """
+    The owner's label.
+    """
     pH: Annotated[Optional[float], Field(title='Ph')] = None
+    """
+    pH recorded with the submission, if any.
+    """
     warning: Annotated[Optional[str], Field(title='Warning')] = None
+    """
+    A processing warning, if any.
+    """
     error: Annotated[Optional[str], Field(title='Error')] = None
+    """
+    Why processing failed, if it did.
+    """
     owner: Annotated[Optional[str], Field(title='Owner')] = None
     """
     The owner's email; shown to the owner, admins and services.
     """
     owned_by_caller: Annotated[bool, Field(title='Owned By Caller')]
+    """
+    The calling key's account owns it.
+    """
     tags: Annotated[Optional[List[str]], Field(title='Tags')] = []
+    """
+    The compound's tags.
+    """
     has_ti: Annotated[Optional[bool], Field(title='Has Ti')] = False
+    """
+    It has a TI solvation free energy.
+    """
     started_at: Annotated[Optional[str], Field(title='Started At')] = None
+    """
+    When its latest QM stage was claimed (UTC).
+    """
     topology_generated_at: Annotated[
         Optional[str], Field(title='Topology Generated At')
     ] = None
@@ -1794,9 +3759,21 @@ class Molecule(BaseModel):
     The current topology version for the default force field, null when none is cached.
     """
     forcefield: Annotated[str, Field(title='Forcefield')]
+    """
+    The force field `topology_hash` is for.
+    """
     status: MoleculeStatus
+    """
+    Where it is in the pipeline.
+    """
     client_reference: Annotated[Optional[str], Field(title='Client Reference')] = None
+    """
+    Your identifier from the submission.
+    """
     links: MoleculeLinks
+    """
+    Its sub-resources.
+    """
 
 
 class MoleculeCuration(BaseModel):
@@ -1810,6 +3787,9 @@ class MoleculeCuration(BaseModel):
     curation_trust: Annotated[
         Optional[CurationTrust], Field(title='Curation Trust')
     ] = None
+    """
+    -1 failed, 0 generated by the ATB, 1 and 2 manually curated.
+    """
     datasets: Optional[SetChange] = None
     """
     Targeted-submission dataset flags.
@@ -1825,8 +3805,17 @@ class MotifPage(BaseModel):
         extra='allow',
     )
     items: Annotated[List[MotifSummary], Field(title='Items')]
+    """
+    Motifs, in the requested order.
+    """
     next_cursor: Annotated[Optional[str], Field(title='Next Cursor')] = None
+    """
+    Pass as `cursor` for the next page; null on the last.
+    """
     total: Annotated[int, Field(title='Total')]
+    """
+    Motifs matching the filters.
+    """
     build_id: Annotated[Optional[int], Field(title='Build Id')] = None
     """
     The build listed; null when this key may read none.
@@ -1842,9 +3831,21 @@ class Solvation(BaseModel):
         extra='allow',
     )
     molid: Annotated[int, Field(title='Molid')]
+    """
+    The molecule.
+    """
     results: Annotated[List[SolvationResult], Field(title='Results')]
+    """
+    TI results.
+    """
     experimental: Annotated[List[ExperimentalValue], Field(title='Experimental')]
+    """
+    Experimental values for the compound.
+    """
     note: Annotated[Optional[str], Field(title='Note')] = None
+    """
+    Why there are no TI results, when so.
+    """
 
 
 class Statistics(BaseModel):
@@ -1872,6 +3873,9 @@ class TautomerGroup(BaseModel):
         extra='allow',
     )
     group_id: Annotated[str, Field(title='Group Id')]
+    """
+    As requested.
+    """
     grouping: Annotated[str, Field(title='Grouping')]
     """
     `tautomer_group_id` (legacy) or `skeleton_key` (graph keys). A numeric `group_id` is the legacy `compounds.tautomer_group_id`: a 2019 one-off heavy-atom graph search, stereo-blind, which splits about a third of real tautomer/protomer families and covers about a quarter of them. A graph-key `skeleton_key` (`S1-...`, from `compound_graph_keys`) is the grouping that supersedes it, and is accepted in the same place.
@@ -1881,6 +3885,9 @@ class TautomerGroup(BaseModel):
     Visible member molecules, by molid.
     """
     next_cursor: Annotated[Optional[str], Field(title='Next Cursor')] = None
+    """
+    Pass as `cursor` for the next page; null on the last.
+    """
     total: Annotated[int, Field(title='Total')]
     """
     Visible member molecules in the whole group.
@@ -1892,7 +3899,13 @@ class Topologies(BaseModel):
         extra='allow',
     )
     molid: Annotated[int, Field(title='Molid')]
+    """
+    The molecule.
+    """
     items: Annotated[List[TopologyVersionInfo], Field(title='Items')]
+    """
+    Versions, newest first per force field.
+    """
 
 
 class UsagePage(BaseModel):
@@ -1900,5 +3913,32 @@ class UsagePage(BaseModel):
         extra='allow',
     )
     day: Annotated[date, Field(title='Day')]
+    """
+    The UTC day.
+    """
     items: Annotated[List[UsageRow], Field(title='Items')]
+    """
+    Keys, heaviest first.
+    """
     total_weight: Annotated[int, Field(title='Total Weight')]
+    """
+    Sum over `items`.
+    """
+
+
+class ValidationPut(BaseModel):
+    model_config = ConfigDict(
+        extra='allow',
+    )
+    files: Annotated[Optional[Dict[str, str]], Field(title='Files')] = None
+    """
+    For EMinVac: EMinVac.pdb, EMinVac_ref.pdb, EMinVac.log. Written before the row.
+    """
+    overwrite: Annotated[Optional[bool], Field(title='Overwrite')] = True
+    """
+    Replace files that exist.
+    """
+    row: Optional[ValidationRow] = None
+    """
+    The validation row, written last -- a row with a value and no files is unreachable (root CLAUDE.md, emin_vac).
+    """
