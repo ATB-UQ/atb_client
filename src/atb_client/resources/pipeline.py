@@ -31,6 +31,7 @@ def _drop_none(**kwargs: Any) -> Dict[str, Any]:
 
 
 def _ids(molids: Iterable[int]) -> List[int]:
+    """Molids as a list of ints, the shape every pipeline body takes."""
     return [int(molid) for molid in molids]
 
 
@@ -227,6 +228,7 @@ class PipelineMolecules(Resource):
         )
 
     def _job(self, molid: int, what: str, timeout: Optional[float]):
+        """POST a per-molecule job action and wait for it under the D8 convention."""
         kind, value = yield from _ops.call_with_wait(
             self._client,
             "POST",
