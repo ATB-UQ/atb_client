@@ -310,6 +310,55 @@ def cmd_usage(atb: ATBClient, args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+# --------------------------------------------------------------------------- admin
+
+
+def cmd_admin_users(atb: ATBClient, args: argparse.Namespace) -> int:
+    """``atb admin users [Q]``: list accounts, or walk every page with ``--all``."""
+    page = atb.admin.users.list(args.q, limit=args.limit)
+    _emit(args, list(page.all()) if args.all else page)
+    return EXIT_OK
+
+
+def cmd_admin_molecule(atb: ATBClient, args: argparse.Namespace) -> int:
+    """``atb admin molecule ID --max-qm-level N``: the one curation act a
+    ``pipeline:write`` key may also do; the other fields need ``admin``."""
+    fields: dict = {}
+    if args.max_qm_level is not None:
+        fields["max_qm_level"] = args.max_qm_level
+    if args.curation_trust is not None:
+        fields["curation_trust"] = args.curation_trust
+    if args.tag_add:
+        fields["tags_add"] = args.tag_add
+    if args.tag_remove:
+        fields["tags_remove"] = args.tag_remove
+    if not fields:
+        raise UsageError(
+            "nothing to change: give --max-qm-level, --curation-trust, --tag-add or --tag-remove"
+        )
+    _emit(args, atb.admin.molecules.update(args.molid, **fields))
+    return EXIT_OK
+
+
+def cmd_admin_stalled(atb: ATBClient, args: argparse.Namespace) -> int:
+    """``atb admin stalled``: molecules no QM driver will pick up (plan D9)."""
+    page = atb.admin.molecules.stalled(scan=args.scan)
+    _emit(args, list(page.all()) if args.all else page)
+    return EXIT_OK
+
+
+def cmd_admin_audit(atb: ATBClient, args: argparse.Namespace) -> int:
+    """``atb admin audit``: recent admin/service/root writes and denials."""
+    filters: dict = {}
+    for name in ("key_id", "principal", "user_email", "target_type", "target_id", "outcome"):
+        value = getattr(args, name)
+        if value is not None:
+            filters[name] = value
+    page = atb.admin.audit(limit=args.limit, **filters)
+    _emit(args, list(page.all()) if args.all else page)
+    return EXIT_OK
+
+
 # --------------------------------------------------------------------------- parser
 
 
@@ -453,6 +502,45 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("id")
 
     add("usage", cmd_usage, "today's counters and limits")
+
+    admin = sub.add_parser(
+        "admin", help="admin operations (needs a key holding the admin scope)", parents=[common]
+    )
+    admin_sub = admin.add_subparsers(dest="admin_command", metavar="ACTION", parser_class=_Parser)
+    admin_sub.required = True
+
+    p = admin_sub.add_parser("users", help="list accounts", parents=[common])
+    p.set_defaults(func=cmd_admin_users)
+    p.add_argument("q", nargs="?", help="part of an email, name or institute")
+    p.add_argument("--limit", type=int)
+    p.add_argument("--all", action="store_true", help="walk every page")
+
+    p = admin_sub.add_parser("molecule", help="curate one molecule", parents=[common])
+    p.set_defaults(func=cmd_admin_molecule)
+    p.add_argument("molid", type=int)
+    p.add_argument("--max-qm-level", type=int, dest="max_qm_level")
+    p.add_argument("--curation-trust", type=int, dest="curation_trust")
+    p.add_argument("--tag-add", action="append", dest="tag_add", metavar="TAG")
+    p.add_argument("--tag-remove", action="append", dest="tag_remove", metavar="TAG")
+
+    p = admin_sub.add_parser(
+        "stalled", help="molecules no QM driver will pick up (plan D9)", parents=[common]
+    )
+    p.set_defaults(func=cmd_admin_stalled)
+    p.add_argument("--scan", type=int, help="candidates examined per page")
+    p.add_argument("--all", action="store_true", help="walk every page")
+
+    p = admin_sub.add_parser("audit", help="recent admin/service/root writes", parents=[common])
+    p.set_defaults(func=cmd_admin_audit)
+    p.add_argument("--key-id", type=int, dest="key_id")
+    p.add_argument("--principal", choices=["user", "service", "root", "anonymous"])
+    p.add_argument("--user-email", dest="user_email")
+    p.add_argument("--target-type", dest="target_type")
+    p.add_argument("--target-id", dest="target_id")
+    p.add_argument("--outcome", choices=["ok", "denied", "error"])
+    p.add_argument("--limit", type=int)
+    p.add_argument("--all", action="store_true", help="walk every page")
+
     return parser
 
 

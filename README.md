@@ -206,9 +206,30 @@ atb ifp 54A7 -o 54A7.ifp
 atb keys create --name laptop --scopes read,submit --expires 90d
 atb keys list
 atb usage
+
+# admin (needs a key holding the admin scope)
+atb admin users acme.edu --all
+atb admin molecule 21 --max-qm-level 2
+atb admin stalled --all
+atb admin audit --target-type molecule --target-id 21
 ```
 
 Output is JSON on stdout (`--table` for humans); errors are JSON on stderr.
+
+### Admin
+
+`client.admin.*` (`admin/*`) is the administrator's surface: user accounts and their
+keys, quota-request approval, molecule curation (`max_qm_level`, `curation_trust`,
+dataset/tag flags), cache clearing and forced regeneration, dihedral scan requests,
+the audit log, per-key usage, deletion requests, and the `stalled` molecule list (plan
+D9). Every call needs an API key carrying the `admin` scope and is audited
+server-side, reads included. `client.admin.molecules.update(molid,
+max_qm_level=...)` is the one call a `pipeline:write` service key may also make —
+every other admin field, and every other admin call, needs `admin`.
+
+Root operations (promoting an admin, deleting a molecule or an account, granting
+`admin` on a key) are **not** part of this client: they exist only on the server's
+internal listener, driven by its own `atb-api root` CLI, never over the public API.
 
 ### Exit codes
 
