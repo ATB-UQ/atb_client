@@ -19,6 +19,103 @@ class Account(BaseModel):
     group_id: Annotated[Optional[int], Field(title='Group Id')] = None
 
 
+class ExpiresInDays(RootModel[int]):
+    root: Annotated[int, Field(ge=1, le=3650, title='Expires In Days')]
+    """
+    Omitted: the calling key's own expiry, if it has one. Never later than it.
+    """
+
+
+class BurstPerMin(RootModel[int]):
+    root: Annotated[int, Field(ge=1, le=100000, title='Burst Per Min')]
+
+
+class DailyLimit(RootModel[int]):
+    root: Annotated[int, Field(ge=1, le=10000000, title='Daily Limit')]
+
+
+class AdminKeyCreate(BaseModel):
+    model_config = ConfigDict(
+        extra='allow',
+    )
+    name: Annotated[str, Field(max_length=64, min_length=1, title='Name')]
+    """
+    A label, e.g. "laptop notebook".
+    """
+    scopes: Annotated[Optional[List[str]], Field(title='Scopes')] = None
+    """
+    A subset of the calling key's scopes. Omitted: all of them.
+    """
+    expires_in_days: Annotated[
+        Optional[ExpiresInDays], Field(title='Expires In Days')
+    ] = None
+    """
+    Omitted: the calling key's own expiry, if it has one. Never later than it.
+    """
+    burst_per_min: Annotated[Optional[BurstPerMin], Field(title='Burst Per Min')] = None
+    daily_limit: Annotated[Optional[DailyLimit], Field(title='Daily Limit')] = None
+
+
+class AdminUser(BaseModel):
+    model_config = ConfigDict(
+        extra='allow',
+    )
+    id: Annotated[int, Field(title='Id')]
+    email: Annotated[str, Field(title='Email')]
+    fullname: Annotated[Optional[str], Field(title='Fullname')] = None
+    institute: Annotated[Optional[str], Field(title='Institute')] = None
+    user_class: Annotated[int, Field(title='User Class')]
+    group_id: Annotated[Optional[int], Field(title='Group Id')] = None
+    expiry: Annotated[Optional[date], Field(title='Expiry')] = None
+
+
+class AdminUserPage(BaseModel):
+    model_config = ConfigDict(
+        extra='allow',
+    )
+    items: Annotated[List[AdminUser], Field(title='Items')]
+    next_cursor: Annotated[Optional[str], Field(title='Next Cursor')] = None
+
+
+class BurstPerMin1(RootModel[int]):
+    root: Annotated[int, Field(ge=1, le=100000, title='Burst Per Min')]
+    """
+    Set on every live key of the account; null: the class default.
+    """
+
+
+class DailyLimit1(RootModel[int]):
+    root: Annotated[int, Field(ge=1, le=10000000, title='Daily Limit')]
+    """
+    Set on every live key of the account; null: the class default.
+    """
+
+
+class AdminUserUpdate(BaseModel):
+    model_config = ConfigDict(
+        extra='allow',
+    )
+    user_class: Annotated[Optional[int], Field(title='User Class')] = None
+    """
+    1, 2, 3, 4 or 6. Class 5 is reached only through root.
+    """
+    group_id: Annotated[Optional[int], Field(title='Group Id')] = None
+    expiry: Annotated[Optional[date], Field(title='Expiry')] = None
+    """
+    Send null to clear it.
+    """
+    burst_per_min: Annotated[Optional[BurstPerMin1], Field(title='Burst Per Min')] = (
+        None
+    )
+    """
+    Set on every live key of the account; null: the class default.
+    """
+    daily_limit: Annotated[Optional[DailyLimit1], Field(title='Daily Limit')] = None
+    """
+    Set on every live key of the account; null: the class default.
+    """
+
+
 class ArchetypeDetail(BaseModel):
     """
     One fitted archetype, as the archetype page shows it, less the whole-library IFP
@@ -92,6 +189,25 @@ class ArchetypeRow(BaseModel):
     term_ids: Annotated[Optional[List], Field(title='Term Ids')] = []
     in_ifp: Annotated[bool, Field(title='In Ifp')]
     update_date: Annotated[Optional[str], Field(title='Update Date')] = None
+
+
+class AuditRow(BaseModel):
+    model_config = ConfigDict(
+        extra='allow',
+    )
+    id: Annotated[int, Field(title='Id')]
+    at: Annotated[Optional[str], Field(title='At')] = None
+    key_id: Annotated[Optional[int], Field(title='Key Id')] = None
+    principal: Annotated[str, Field(title='Principal')]
+    user_email: Annotated[Optional[str], Field(title='User Email')] = None
+    method: Annotated[str, Field(title='Method')]
+    path: Annotated[str, Field(title='Path')]
+    target_type: Annotated[Optional[str], Field(title='Target Type')] = None
+    target_id: Annotated[Optional[str], Field(title='Target Id')] = None
+    outcome: Annotated[str, Field(title='Outcome')]
+    status: Annotated[int, Field(title='Status')]
+    detail: Annotated[Any, Field(title='Detail')] = None
+    ip: Annotated[Optional[str], Field(title='Ip')] = None
 
 
 class BatchItem(BaseModel):
@@ -237,6 +353,26 @@ class BundleResult(BaseModel):
     retention_hours: Annotated[int, Field(title='Retention Hours')]
 
 
+class CacheClear(BaseModel):
+    model_config = ConfigDict(
+        extra='allow',
+    )
+    all: Annotated[Optional[bool], Field(title='All')] = False
+    """
+    Every version and every public-cache entry (v0.1 clear_cache); default: the current topology version only.
+    """
+
+
+class CacheCleared(BaseModel):
+    model_config = ConfigDict(
+        extra='allow',
+    )
+    molid: Annotated[int, Field(title='Molid')]
+    all: Annotated[bool, Field(title='All')]
+    removed: Annotated[List[str], Field(title='Removed')]
+    kept: Annotated[Optional[List[Dict[str, Any]]], Field(title='Kept')] = None
+
+
 class Change(BaseModel):
     model_config = ConfigDict(
         extra='allow',
@@ -279,6 +415,20 @@ class Conformations(BaseModel):
     items: Annotated[List[Conformation], Field(title='Items')]
 
 
+class CurationResult(BaseModel):
+    model_config = ConfigDict(
+        extra='allow',
+    )
+    molid: Annotated[int, Field(title='Molid')]
+    changed: Annotated[Dict[str, Any], Field(title='Changed')]
+    qm_level: Annotated[Optional[int], Field(title='Qm Level')] = None
+    max_qm_level: Annotated[Optional[int], Field(title='Max Qm Level')] = None
+    curation_trust: Annotated[Optional[int], Field(title='Curation Trust')] = None
+    datasets: Annotated[Optional[List[str]], Field(title='Datasets')] = None
+    tags: Annotated[Optional[List[str]], Field(title='Tags')] = None
+    stage: Annotated[Optional[str], Field(title='Stage')] = None
+
+
 class Reason(RootModel[str]):
     root: Annotated[str, Field(max_length=1000, title='Reason')]
 
@@ -288,6 +438,25 @@ class DeletionRequest(BaseModel):
         extra='allow',
     )
     reason: Annotated[Optional[Reason], Field(title='Reason')] = None
+
+
+class DeletionRequestItem(BaseModel):
+    model_config = ConfigDict(
+        extra='allow',
+    )
+    molid: Annotated[int, Field(title='Molid')]
+    owner: Annotated[Optional[str], Field(title='Owner')] = None
+    public: Annotated[bool, Field(title='Public')]
+    request_time: Annotated[Any, Field(title='Request Time')] = None
+    deletable: Annotated[bool, Field(title='Deletable')]
+    blockers: Annotated[Optional[List[Dict[str, Any]]], Field(title='Blockers')] = None
+
+
+class DeletionRequestPage(BaseModel):
+    model_config = ConfigDict(
+        extra='allow',
+    )
+    items: Annotated[List[DeletionRequestItem], Field(title='Items')]
 
 
 class DeletionRequestResult(BaseModel):
@@ -454,13 +623,6 @@ class JobPage(BaseModel):
     next_cursor: Annotated[Optional[str], Field(title='Next Cursor')] = None
 
 
-class ExpiresInDays(RootModel[int]):
-    root: Annotated[int, Field(ge=1, le=3650, title='Expires In Days')]
-    """
-    Omitted: the calling key's own expiry, if it has one. Never later than it.
-    """
-
-
 class KeyCreate(BaseModel):
     model_config = ConfigDict(
         extra='allow',
@@ -535,6 +697,28 @@ class KeyInfo(BaseModel):
     """
 
 
+class BurstPerMin2(RootModel[int]):
+    root: Annotated[int, Field(ge=1, le=100000, title='Burst Per Min')]
+
+
+class DailyLimit2(RootModel[int]):
+    root: Annotated[int, Field(ge=1, le=10000000, title='Daily Limit')]
+
+
+class KeyLimitsUpdate(BaseModel):
+    """
+    Omitted: unchanged. null: back to the class default.
+    """
+
+    model_config = ConfigDict(
+        extra='allow',
+    )
+    burst_per_min: Annotated[Optional[BurstPerMin2], Field(title='Burst Per Min')] = (
+        None
+    )
+    daily_limit: Annotated[Optional[DailyLimit2], Field(title='Daily Limit')] = None
+
+
 class KeyList(BaseModel):
     model_config = ConfigDict(
         extra='allow',
@@ -600,6 +784,17 @@ class Me(BaseModel):
     scopes: Annotated[List[str], Field(title='Scopes')]
     limits: Limits
     account: Optional[Account] = None
+
+
+class MaxQmLevel1(RootModel[int]):
+    root: Annotated[int, Field(ge=0, le=2, title='Max Qm Level')]
+    """
+    Raise the cap; the molecule re-enters the QM pipeline (v0.1 update_maximum_qm_level). Also accepted from a pipeline:write service key.
+    """
+
+
+class CurationTrust(RootModel[int]):
+    root: Annotated[int, Field(ge=-1, le=2, title='Curation Trust')]
 
 
 class MoleculeLinks(BaseModel):
@@ -819,11 +1014,55 @@ class QMSummary(BaseModel):
     levels: Annotated[List[QMLevel], Field(title='Levels')]
 
 
-class BurstPerMin(RootModel[int]):
+class BurstPerMin3(RootModel[int]):
+    root: Annotated[int, Field(ge=1, le=100000, title='Burst Per Min')]
+    """
+    Omitted: what was asked for.
+    """
+
+
+class DailyLimit3(RootModel[int]):
+    root: Annotated[int, Field(ge=1, le=10000000, title='Daily Limit')]
+    """
+    Omitted: what was asked for.
+    """
+
+
+class Note(RootModel[str]):
+    root: Annotated[str, Field(max_length=2000, title='Note')]
+
+
+class QuotaApproval(BaseModel):
+    model_config = ConfigDict(
+        extra='allow',
+    )
+    burst_per_min: Annotated[Optional[BurstPerMin3], Field(title='Burst Per Min')] = (
+        None
+    )
+    """
+    Omitted: what was asked for.
+    """
+    daily_limit: Annotated[Optional[DailyLimit3], Field(title='Daily Limit')] = None
+    """
+    Omitted: what was asked for.
+    """
+    note: Annotated[Optional[Note], Field(title='Note')] = None
+
+
+class QuotaApproved(BaseModel):
+    model_config = ConfigDict(
+        extra='allow',
+    )
+    request_id: Annotated[int, Field(title='Request Id')]
+    approval_id: Annotated[Optional[int], Field(title='Approval Id')] = None
+    key: KeyInfo
+
+
+class BurstPerMin4(RootModel[int]):
     root: Annotated[int, Field(ge=1, le=100000, title='Burst Per Min')]
 
 
-class DailyLimit(RootModel[int]):
+class DailyLimit4(RootModel[int]):
     root: Annotated[int, Field(ge=1, le=10000000, title='Daily Limit')]
 
 
@@ -835,12 +1074,40 @@ class QuotaRequest(BaseModel):
     """
     Omitted: the calling key.
     """
-    burst_per_min: Annotated[Optional[BurstPerMin], Field(title='Burst Per Min')] = None
-    daily_limit: Annotated[Optional[DailyLimit], Field(title='Daily Limit')] = None
+    burst_per_min: Annotated[Optional[BurstPerMin4], Field(title='Burst Per Min')] = (
+        None
+    )
+    daily_limit: Annotated[Optional[DailyLimit4], Field(title='Daily Limit')] = None
     reason: Annotated[str, Field(max_length=2000, min_length=1, title='Reason')]
     """
     What the raised limit is for.
     """
+
+
+class QuotaRequestItem(BaseModel):
+    model_config = ConfigDict(
+        extra='allow',
+    )
+    id: Annotated[int, Field(title='Id')]
+    """
+    The api_audit row id of the request.
+    """
+    at: Annotated[Optional[str], Field(title='At')] = None
+    key_id: Annotated[Optional[int], Field(title='Key Id')] = None
+    user_email: Annotated[Optional[str], Field(title='User Email')] = None
+    burst_per_min: Annotated[Optional[int], Field(title='Burst Per Min')] = None
+    daily_limit: Annotated[Optional[int], Field(title='Daily Limit')] = None
+    reason: Annotated[Optional[str], Field(title='Reason')] = None
+    status: Annotated[Literal['pending', 'approved'], Field(title='Status')]
+    approval: Annotated[Optional[Dict[str, Any]], Field(title='Approval')] = None
+
+
+class QuotaRequestPage(BaseModel):
+    model_config = ConfigDict(
+        extra='allow',
+    )
+    items: Annotated[List[QuotaRequestItem], Field(title='Items')]
+    next_cursor: Annotated[Optional[str], Field(title='Next Cursor')] = None
 
 
 class QuotaRequestReceived(BaseModel):
@@ -894,6 +1161,16 @@ class RMSDResult(BaseModel):
     """
 
 
+class Regenerate(BaseModel):
+    model_config = ConfigDict(
+        extra='allow',
+    )
+    forcefield: Annotated[Optional[str], Field(title='Forcefield')] = None
+    """
+    Default: every force field.
+    """
+
+
 class RemapRequest(BaseModel):
     model_config = ConfigDict(
         extra='allow',
@@ -925,6 +1202,73 @@ class RemapRequest(BaseModel):
     united: Annotated[Optional[bool], Field(title='United')] = False
 
 
+class ScanCancelled(BaseModel):
+    model_config = ConfigDict(
+        extra='allow',
+    )
+    scan_request_id: Annotated[int, Field(title='Scan Request Id')]
+    molid: Annotated[int, Field(title='Molid')]
+    status: Annotated[Optional[str], Field(title='Status')] = 'cancelled'
+
+
+class ScanQueued(BaseModel):
+    model_config = ConfigDict(
+        extra='allow',
+    )
+    scan_request_id: Annotated[int, Field(title='Scan Request Id')]
+    dihedral_run_id: Annotated[int, Field(title='Dihedral Run Id')]
+    molid: Annotated[int, Field(title='Molid')]
+    dihedral_atoms: Annotated[str, Field(title='Dihedral Atoms')]
+    method: Annotated[str, Field(title='Method')]
+    mode: Annotated[str, Field(title='Mode')]
+    execution: Annotated[str, Field(title='Execution')]
+    status: Annotated[Optional[str], Field(title='Status')] = 'queued'
+
+
+class DihedralLabel(RootModel[str]):
+    root: Annotated[str, Field(max_length=255, title='Dihedral Label')]
+
+
+class ScanRequest(BaseModel):
+    model_config = ConfigDict(
+        extra='allow',
+    )
+    dihedral_atoms: Annotated[
+        List[int], Field(max_length=4, min_length=4, title='Dihedral Atoms')
+    ]
+    """
+    Four distinct 1-indexed PDB serials, e.g. [26, 25, 19, 20].
+    """
+    method: Annotated[
+        Literal['gfn2', 'wb97x_631gd', 'wb97x_631gd_smd_water', 'wb97x_d3bj_631gd'],
+        Field(title='Method'),
+    ]
+    mode: Annotated[
+        Optional[Literal['relaxed', 'partial', 'rigid']], Field(title='Mode')
+    ] = 'partial'
+    execution: Annotated[
+        Optional[Literal['local', 'setonix', 'gadi']], Field(title='Execution')
+    ] = None
+    """
+    Default: local for gfn2, setonix otherwise.
+    """
+    dihedral_label: Annotated[
+        Optional[DihedralLabel], Field(title='Dihedral Label')
+    ] = None
+    priority: Annotated[Optional[int], Field(title='Priority')] = 0
+    grid_start: Annotated[Optional[float], Field(title='Grid Start')] = -165.0
+    grid_stop: Annotated[Optional[float], Field(title='Grid Stop')] = 180.0
+    grid_increment: Annotated[Optional[float], Field(title='Grid Increment')] = 15.0
+
+
+class SetChange(BaseModel):
+    model_config = ConfigDict(
+        extra='allow',
+    )
+    add: Annotated[Optional[List[str]], Field(title='Add')] = None
+    remove: Annotated[Optional[List[str]], Field(title='Remove')] = None
+
+
 class SolvationResult(BaseModel):
     model_config = ConfigDict(
         extra='allow',
@@ -950,6 +1294,28 @@ class SolvationResult(BaseModel):
     The newest result for this solvent and method.
     """
     experimental: Optional[ExperimentalValue] = None
+
+
+class StalledItem(BaseModel):
+    model_config = ConfigDict(
+        extra='allow',
+    )
+    molid: Annotated[int, Field(title='Molid')]
+    atoms: Annotated[Optional[int], Field(title='Atoms')] = None
+    owner: Annotated[Optional[str], Field(title='Owner')] = None
+    status: MoleculeStatus
+
+
+class StalledPage(BaseModel):
+    model_config = ConfigDict(
+        extra='allow',
+    )
+    items: Annotated[List[StalledItem], Field(title='Items')]
+    scanned: Annotated[int, Field(title='Scanned')]
+    """
+    Candidate molecules examined for this page.
+    """
+    next_cursor: Annotated[Optional[str], Field(title='Next Cursor')] = None
 
 
 class StatisticPoint(BaseModel):
@@ -1005,6 +1371,13 @@ class StructureSearchResult(BaseModel):
     """
 
 
+class MaxQmLevel2(RootModel[int]):
+    root: Annotated[int, Field(ge=0, le=2, title='Max Qm Level')]
+    """
+    Lower the QM ceiling below the size-derived default. Only admin and service keys may raise it.
+    """
+
+
 class SubmissionRequest(BaseModel):
     model_config = ConfigDict(
         extra='allow',
@@ -1026,7 +1399,7 @@ class SubmissionRequest(BaseModel):
         ],
         Field(title='Moltype'),
     ] = 'heteromolecule'
-    max_qm_level: Annotated[Optional[MaxQmLevel], Field(title='Max Qm Level')] = None
+    max_qm_level: Annotated[Optional[MaxQmLevel2], Field(title='Max Qm Level')] = None
     """
     Lower the QM ceiling below the size-derived default. Only admin and service keys may raise it.
     """
@@ -1131,6 +1504,18 @@ class Usage(BaseModel):
     """
 
 
+class UsageRow(BaseModel):
+    model_config = ConfigDict(
+        extra='allow',
+    )
+    key_id: Annotated[int, Field(title='Key Id')]
+    prefix: Annotated[Optional[str], Field(title='Prefix')] = None
+    principal: Annotated[Optional[str], Field(title='Principal')] = None
+    name: Annotated[Optional[str], Field(title='Name')] = None
+    user_email: Annotated[Optional[str], Field(title='User Email')] = None
+    weight: Annotated[int, Field(title='Weight')]
+
+
 class VacuumValidation(BaseModel):
     model_config = ConfigDict(
         extra='allow',
@@ -1167,6 +1552,24 @@ class ValidationError(BaseModel):
     ctx: Annotated[Optional[Dict[str, Any]], Field(title='Context')] = None
 
 
+class AdminUserDetail(BaseModel):
+    model_config = ConfigDict(
+        extra='allow',
+    )
+    id: Annotated[int, Field(title='Id')]
+    email: Annotated[str, Field(title='Email')]
+    fullname: Annotated[Optional[str], Field(title='Fullname')] = None
+    institute: Annotated[Optional[str], Field(title='Institute')] = None
+    user_class: Annotated[int, Field(title='User Class')]
+    group_id: Annotated[Optional[int], Field(title='Group Id')] = None
+    expiry: Annotated[Optional[date], Field(title='Expiry')] = None
+    keys: Annotated[Optional[List[KeyInfo]], Field(title='Keys')] = None
+    molecules: Annotated[Optional[int], Field(title='Molecules')] = 0
+    """
+    Molecules the account owns.
+    """
+
+
 class ArchetypePage(BaseModel):
     model_config = ConfigDict(
         extra='allow',
@@ -1181,6 +1584,14 @@ class ArchetypePage(BaseModel):
     """
     Counts over the whole data set, whatever the filters.
     """
+
+
+class AuditPage(BaseModel):
+    model_config = ConfigDict(
+        extra='allow',
+    )
+    items: Annotated[List[AuditRow], Field(title='Items')]
+    next_cursor: Annotated[Optional[str], Field(title='Next Cursor')] = None
 
 
 class Structures(RootModel[List[BatchStructure]]):
@@ -1388,6 +1799,27 @@ class Molecule(BaseModel):
     links: MoleculeLinks
 
 
+class MoleculeCuration(BaseModel):
+    model_config = ConfigDict(
+        extra='allow',
+    )
+    max_qm_level: Annotated[Optional[MaxQmLevel1], Field(title='Max Qm Level')] = None
+    """
+    Raise the cap; the molecule re-enters the QM pipeline (v0.1 update_maximum_qm_level). Also accepted from a pipeline:write service key.
+    """
+    curation_trust: Annotated[
+        Optional[CurationTrust], Field(title='Curation Trust')
+    ] = None
+    datasets: Optional[SetChange] = None
+    """
+    Targeted-submission dataset flags.
+    """
+    tags: Optional[SetChange] = None
+    """
+    The compound's tags.
+    """
+
+
 class MotifPage(BaseModel):
     model_config = ConfigDict(
         extra='allow',
@@ -1461,3 +1893,12 @@ class Topologies(BaseModel):
     )
     molid: Annotated[int, Field(title='Molid')]
     items: Annotated[List[TopologyVersionInfo], Field(title='Items')]
+
+
+class UsagePage(BaseModel):
+    model_config = ConfigDict(
+        extra='allow',
+    )
+    day: Annotated[date, Field(title='Day')]
+    items: Annotated[List[UsageRow], Field(title='Items')]
+    total_weight: Annotated[int, Field(title='Total Weight')]
