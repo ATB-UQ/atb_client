@@ -22,7 +22,8 @@ models generated from the same schema (:mod:`atb_client.generated.models`).
 Refresh the schema from a checkout of the server with::
 
     python -c "import json; from website.api_v1.app import create_app; \\
-        print(json.dumps(create_app('public', redis_client=object()).openapi(), indent=2))" \\
+        app = create_app('public', redis_client=object(), db_factory=lambda: None); \\
+        print(json.dumps(app.openapi()))" \\
         > tests/data/openapi.json
     scripts/generate_models.sh tests/data/openapi.json
 """
@@ -324,6 +325,86 @@ IMPLEMENTED: Dict[str, Tuple[Call, str]] = {
     "jobs.cancel": (lambda c: c.jobs.cancel("j1"), "jobs_cancel"),
     "jobs.wait": (lambda c: c.jobs.wait("j1"), "jobs_get"),
     "jobs.result": (lambda c: c.jobs.result("j1"), "jobs_result"),
+    "admin.users.list": (
+        lambda c: c.admin.users.list("x", limit=5, cursor="k"),
+        "admin_users_list",
+    ),
+    "admin.users.get": (lambda c: c.admin.users.get(3), "admin_users_get"),
+    "admin.users.update": (
+        lambda c: c.admin.users.update(3, group_id=1),
+        "admin_users_update",
+    ),
+    "admin.users.create_key": (
+        lambda c: c.admin.users.create_key(3, name="k", expires_in_days=30),
+        "admin_users_keys_create",
+    ),
+    "admin.users.update_key": (
+        lambda c: c.admin.users.update_key(3, 4, daily_limit=1),
+        "admin_users_keys_update",
+    ),
+    "admin.users.revoke_key": (
+        lambda c: c.admin.users.revoke_key(3, 4),
+        "admin_users_keys_revoke",
+    ),
+    "admin.molecules.update": (
+        lambda c: c.admin.molecules.update(21, max_qm_level=2),
+        "admin_molecules_update",
+    ),
+    "admin.molecules.cache_clear": (
+        lambda c: c.admin.molecules.cache_clear(21),
+        "admin_molecules_cache_clear",
+    ),
+    "admin.molecules.cache_invalidate": (
+        lambda c: c.admin.molecules.cache_invalidate(21),
+        "admin_molecules_cache_invalidate",
+    ),
+    "admin.molecules.regenerate": (
+        lambda c: c.admin.molecules.regenerate(21),
+        "molecules_topologies_regenerate",
+    ),
+    "admin.molecules.request_scan": (
+        lambda c: c.admin.molecules.request_scan(21, dihedral_atoms=[1, 2, 3, 4], method="gfn2"),
+        "admin_molecules_scans_create",
+    ),
+    "admin.molecules.cancel_scan": (
+        lambda c: c.admin.molecules.cancel_scan(21, 5),
+        "admin_molecules_scans_cancel",
+    ),
+    "admin.molecules.stalled": (
+        lambda c: c.admin.molecules.stalled(scan=100, cursor="k"),
+        "admin_molecules_stalled",
+    ),
+    "admin.quota_requests": (
+        lambda c: c.admin.quota_requests(status="all", limit=5, cursor="k"),
+        "admin_quota_requests_list",
+    ),
+    "admin.approve_quota_request": (
+        lambda c: c.admin.approve_quota_request(9, daily_limit=100, note="ok"),
+        "admin_quota_requests_approve",
+    ),
+    "admin.audit": (
+        lambda c: c.admin.audit(
+            key_id=3,
+            principal="user",
+            user_email="a@b",
+            target_type="molecule",
+            target_id="21",
+            outcome="ok",
+            since="2026-01-01T00:00:00Z",
+            until="2026-01-02T00:00:00Z",
+            limit=5,
+            cursor="k",
+        ),
+        "admin_audit_list",
+    ),
+    "admin.usage": (
+        lambda c: c.admin.usage(day="2026-01-01", user_id=3, limit=5),
+        "admin_usage",
+    ),
+    "admin.deletion_requests": (
+        lambda c: c.admin.deletion_requests(),
+        "admin_deletion_requests_list",
+    ),
 }
 
 #: Query parameters the client sends that an implemented operation does not declare
@@ -334,62 +415,6 @@ EXPECTED_EXTRA_PARAMS: Dict[str, Set[str]] = {}
 #: Client calls aimed at routes the server has not built yet (WP3, WP5, WP6):
 #: id -> (call, "METHOD /path/template"). Their shapes follow the plan (§6).
 UNBUILT: Dict[str, Tuple[Call, str]] = {
-    "admin.users.list": (lambda c: c.admin.users.list("x"), "GET /admin/users"),
-    "admin.users.get": (lambda c: c.admin.users.get(3), "GET /admin/users/{id}"),
-    "admin.users.update": (
-        lambda c: c.admin.users.update(3, group_id=1),
-        "PATCH /admin/users/{id}",
-    ),
-    "admin.users.create_key": (
-        lambda c: c.admin.users.create_key(3, name="k"),
-        "POST /admin/users/{id}/keys",
-    ),
-    "admin.users.update_key": (
-        lambda c: c.admin.users.update_key(3, 4, daily_limit=1),
-        "PATCH /admin/users/{id}/keys/{kid}",
-    ),
-    "admin.users.revoke_key": (
-        lambda c: c.admin.users.revoke_key(3, 4),
-        "DELETE /admin/users/{id}/keys/{kid}",
-    ),
-    "admin.molecules.update": (
-        lambda c: c.admin.molecules.update(21, max_qm_level=2),
-        "PATCH /admin/molecules/{molid}",
-    ),
-    "admin.molecules.cache_clear": (
-        lambda c: c.admin.molecules.cache_clear(21),
-        "POST /admin/molecules/{molid}/cache:clear",
-    ),
-    "admin.molecules.invalidate": (
-        lambda c: c.admin.molecules.invalidate(21),
-        "POST /admin/molecules/{molid}:invalidate",
-    ),
-    "admin.molecules.regenerate": (
-        lambda c: c.admin.molecules.regenerate(21),
-        "POST /molecules/{molid}/topologies",
-    ),
-    "admin.molecules.request_scan": (
-        lambda c: c.admin.molecules.request_scan(21),
-        "POST /admin/molecules/{molid}/scans",
-    ),
-    "admin.molecules.cancel_scan": (
-        lambda c: c.admin.molecules.cancel_scan(21, 5),
-        "DELETE /admin/molecules/{molid}/scans/{run}",
-    ),
-    "admin.quota_requests": (
-        lambda c: c.admin.quota_requests(),
-        "GET /admin/quota-requests",
-    ),
-    "admin.approve_quota_request": (
-        lambda c: c.admin.approve_quota_request(9),
-        "POST /admin/quota-requests/{id}:approve",
-    ),
-    "admin.audit": (lambda c: c.admin.audit(), "GET /admin/audit"),
-    "admin.usage": (lambda c: c.admin.usage(), "GET /admin/usage"),
-    "admin.deletion_requests": (
-        lambda c: c.admin.deletion_requests(),
-        "GET /admin/deletion-requests",
-    ),
     "pipeline.qm.claim": (
         lambda c: c.pipeline.qm.claim(level=1, runner_id="r"),
         "POST /pipeline/qm/claims",
@@ -443,23 +468,6 @@ UNBUILT: Dict[str, Tuple[Call, str]] = {
 #: The routes the client calls that the server does not have. Checked to be exactly
 #: the routes UNBUILT reaches, and each to be absent from the schema.
 EXPECTED_MISSING: Set[str] = {
-    "POST /molecules/{molid}/topologies",
-    "GET /admin/users",
-    "GET /admin/users/{id}",
-    "PATCH /admin/users/{id}",
-    "POST /admin/users/{id}/keys",
-    "PATCH /admin/users/{id}/keys/{kid}",
-    "DELETE /admin/users/{id}/keys/{kid}",
-    "PATCH /admin/molecules/{molid}",
-    "POST /admin/molecules/{molid}/cache:clear",
-    "POST /admin/molecules/{molid}:invalidate",
-    "POST /admin/molecules/{molid}/scans",
-    "DELETE /admin/molecules/{molid}/scans/{run}",
-    "GET /admin/quota-requests",
-    "POST /admin/quota-requests/{id}:approve",
-    "GET /admin/audit",
-    "GET /admin/usage",
-    "GET /admin/deletion-requests",
     "POST /pipeline/qm/claims",
     "GET /pipeline/qm/claims",
     "DELETE /pipeline/qm/claims/{molid}",
@@ -639,6 +647,24 @@ MODEL_MAP: Dict[str, type] = {
     "BundleResult": models.BundleResult,
     "StructureMatch": models.StructureMatch,
     "StructureSearchResult": models.StructureSearchResult,
+    "AdminUser": models.AdminUser,
+    "AdminUserDetail": models.AdminUserDetail,
+    "AdminUserPage": models.Page,
+    "AuditRow": models.AuditRow,
+    "AuditPage": models.Page,
+    "CacheCleared": models.CacheCleared,
+    "CurationResult": models.CurationResult,
+    "DeletionRequestItem": models.DeletionRequestItem,
+    "DeletionRequestPage": models.DeletionRequestPage,
+    "QuotaApproved": models.QuotaApproved,
+    "QuotaRequestItem": models.QuotaRequestItem,
+    "QuotaRequestPage": models.Page,
+    "ScanCancelled": models.ScanCancelled,
+    "ScanQueued": models.ScanQueued,
+    "StalledItem": models.StalledItem,
+    "StalledPage": models.StalledPage,
+    "UsagePage": models.UsagePage,
+    "UsageRow": models.AdminUsageRow,
 }
 
 #: Generated classes that are not responses the client parses.
@@ -660,6 +686,16 @@ NOT_RESPONSES = {
     "BundleRequest",
     "StructureSearchRequest",
     "RemapRequest",
+    # WP5 admin request bodies (plan §6): the resource methods' keyword arguments.
+    "AdminKeyCreate",
+    "AdminUserUpdate",
+    "KeyLimitsUpdate",
+    "MoleculeCuration",
+    "SetChange",
+    "CacheClear",
+    "Regenerate",
+    "ScanRequest",
+    "QuotaApproval",
 }
 
 
