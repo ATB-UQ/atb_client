@@ -1,5 +1,7 @@
 # atb-client
 
+Full documentation: <https://atb-uq.github.io/atb_client/>.
+
 Python client and command-line tool for the [Automated Topology Builder](https://atb.uq.edu.au)
 (ATB) API v1: submit a structure, wait for its topology, download it in the format your
 simulation engine wants, and search what already exists — from a script, with one API key.

@@ -37,13 +37,17 @@ test = ["pytest", "respx"]
 # exact pin keeps regeneration byte-identical for the contract diff.
 dev = ["pytest", "respx", "ruff", "datamodel-code-generator[http]==0.26.5"]
 
+[dependency-groups]
+# CI/doc-build only; never a runtime or install dependency of the package.
+docs = ["mkdocs-material>=9.5", "mkdocstrings[python]>=0.25"]
+
 [project.scripts]
 atb = "atb_client.cli:main"
 
 [project.urls]
 Homepage = "https://atb.uq.edu.au"
 Source = "https://github.com/ATB-UQ/atb_client"
-Documentation = "https://atb.uq.edu.au/api/v1/docs"
+Documentation = "https://atb-uq.github.io/atb_client/"
 
 [tool.hatch.version]
 path = "src/atb_client/_version.py"

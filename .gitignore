@@ -6,3 +6,6 @@ __pycache__/
 build/
 dist/
 .venv/
+
+# mkdocs build output
+/site/
