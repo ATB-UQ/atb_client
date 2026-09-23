@@ -16,7 +16,7 @@ this client wraps.
 ## Install
 
 ```bash
-pip install atb-client
+pip install "git+https://github.com/ATB-UQ/atb_client"
 ```
 
 ## Quick start

@@ -22,7 +22,7 @@ simulation engine wants, and search what already exists — from a script, with 
 ## Install
 
 ```bash
-pip install atb-client
+pip install "git+https://github.com/ATB-UQ/atb_client"
 ```
 
 ## Your API key
