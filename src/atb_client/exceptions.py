@@ -402,6 +402,21 @@ _BY_SLUG: Dict[str, Type[APIError]] = {
     "archetypes-unavailable": ServiceUnavailable,
     "graph-keys-not-installed": ServiceUnavailable,
     "library-not-installed": ServiceUnavailable,
+    # Emitted by the admin surface (website/website/api_v1/routers/admin.py), WP5.
+    "escalation-refused": PermissionDenied,
+    "admin-account-protected": PermissionDenied,
+    "field-needs-admin": PermissionDenied,
+    "class-group-mismatch": ValidationError,
+    "invalid-class": ValidationError,
+    "invalid-grid": ValidationError,
+    "scope-not-allowed": ValidationError,
+    "approval-on-site": Conflict,
+    "quota-request-approved": Conflict,
+    "key-not-live": Conflict,
+    "scan-exists": Conflict,
+    "scan-not-cancellable": Conflict,
+    "group-not-found": NotFound,
+    "quota-request-not-found": NotFound,
 }
 
 _BY_STATUS: Dict[int, Type[APIError]] = {

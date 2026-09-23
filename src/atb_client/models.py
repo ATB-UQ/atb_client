@@ -51,17 +51,25 @@ if TYPE_CHECKING:  # pragma: no cover
 __all__ = [
     "TERMINAL_STAGES",
     "Account",
+    "AdminUsageRow",
+    "AdminUser",
+    "AdminUserDetail",
     "ApiKey",
     "ArchetypeDetail",
     "ArchetypePage",
     "ArchetypeRow",
+    "AuditRow",
     "BatchItem",
     "BatchResult",
     "BondedParameters",
     "BundleResult",
+    "CacheCleared",
     "Change",
     "Conformation",
     "Conformations",
+    "CurationResult",
+    "DeletionRequestItem",
+    "DeletionRequestPage",
     "DeletionRequestResult",
     "ExperimentalValue",
     "FileEntry",
@@ -87,12 +95,18 @@ __all__ = [
     "Problem",
     "QMLevel",
     "QMSummary",
+    "QuotaApproved",
+    "QuotaRequestItem",
     "QuotaRequestReceived",
     "RMSDInput",
     "RMSDResult",
     "RemapResult",
+    "ScanCancelled",
+    "ScanQueued",
     "Solvation",
     "SolvationResult",
+    "StalledItem",
+    "StalledPage",
     "StatisticPoint",
     "Statistics",
     "StructureMatch",
@@ -104,6 +118,7 @@ __all__ = [
     "Topologies",
     "TopologyVersion",
     "Usage",
+    "UsagePage",
     "VacuumValidation",
     "Validation",
 ]
@@ -984,3 +999,173 @@ class StructureSearchResult(_Model):
     total_matches: int = 0
     uncompared: int = 0
     complete: bool = True
+
+
+# --------------------------------------------------------------------------- admin (WP5)
+
+
+class AdminUser(_Model):
+    """One row of ``GET /admin/users`` and the body of ``GET/PATCH /admin/users/{id}``."""
+
+    id: int
+    email: Optional[str] = None
+    fullname: Optional[str] = None
+    institute: Optional[str] = None
+    user_class: Optional[int] = None
+    group_id: Optional[int] = None
+    expiry: Optional[date] = None
+
+
+class AdminUserDetail(AdminUser):
+    """``GET/PATCH /admin/users/{id}``: the account plus its keys and molecule count."""
+
+    keys: List[ApiKey] = []
+    molecules: int = 0
+
+
+class AuditRow(_Model):
+    """One row of ``GET /admin/audit``: an admin, service or root write, or a denial."""
+
+    id: int
+    at: Optional[datetime] = None
+    key_id: Optional[int] = None
+    principal: Optional[str] = None
+    user_email: Optional[str] = None
+    method: Optional[str] = None
+    path: Optional[str] = None
+    target_type: Optional[str] = None
+    target_id: Optional[str] = None
+    outcome: Optional[str] = None
+    status: Optional[int] = None
+    detail: Optional[Any] = None
+    ip: Optional[str] = None
+
+
+class CurationResult(_Model):
+    """``PATCH /admin/molecules/{molid}`` (or a ``pipeline:write`` service key raising
+    ``max_qm_level`` alone)."""
+
+    molid: int
+    changed: Dict[str, Any] = {}
+    qm_level: Optional[int] = None
+    max_qm_level: Optional[int] = None
+    curation_trust: Optional[int] = None
+    datasets: List[str] = []
+    tags: List[str] = []
+    stage: Optional[str] = None
+
+
+class CacheCleared(_Model):
+    """``POST /admin/molecules/{molid}/cache:clear``."""
+
+    molid: int
+    all: bool = False
+    removed: List[str] = []
+    kept: List[Dict[str, Any]] = []
+
+
+class ScanQueued(_Model):
+    """``POST /admin/molecules/{molid}/scans``."""
+
+    scan_request_id: int
+    dihedral_run_id: Optional[int] = None
+    molid: int
+    dihedral_atoms: Optional[str] = None
+    method: Optional[str] = None
+    mode: Optional[str] = None
+    execution: Optional[str] = None
+    status: str = "queued"
+
+
+class ScanCancelled(_Model):
+    """``DELETE /admin/molecules/{molid}/scans/{scan_request_id}``."""
+
+    scan_request_id: int
+    molid: int
+    status: str = "cancelled"
+
+
+class QuotaRequestItem(_Model):
+    """One row of ``GET /admin/quota-requests``."""
+
+    id: int
+    at: Optional[datetime] = None
+    key_id: Optional[int] = None
+    user_email: Optional[str] = None
+    burst_per_min: Optional[int] = None
+    daily_limit: Optional[int] = None
+    reason: Optional[str] = None
+    status: str = "pending"
+    approval: Optional[Dict[str, Any]] = None
+
+
+class QuotaApproved(_Model):
+    """``POST /admin/quota-requests/{id}:approve``."""
+
+    request_id: int
+    approval_id: Optional[int] = None
+    key: Optional[ApiKey] = None
+
+
+class DeletionRequestItem(_Model):
+    """One row of ``GET /admin/deletion-requests``. Acting on it is a root operation."""
+
+    molid: int
+    owner: Optional[str] = None
+    public: bool = False
+    request_time: Optional[Any] = None
+    deletable: bool = False
+    blockers: List[Dict[str, Any]] = []
+
+
+class DeletionRequestPage(_Model):
+    """``GET /admin/deletion-requests`` — not cursor-paginated (up to 1000 rows)."""
+
+    items: List[DeletionRequestItem] = []
+
+    def __iter__(self) -> Iterator[DeletionRequestItem]:  # type: ignore[override]
+        return iter(self.items)
+
+    def __len__(self) -> int:
+        return len(self.items)
+
+
+class StalledItem(_Model):
+    """One row of ``GET /admin/molecules/stalled`` (plan D9 ``stalled``)."""
+
+    molid: int
+    atoms: Optional[int] = None
+    owner: Optional[str] = None
+    status: Optional[MoleculeStatus] = None
+
+
+class StalledPage(Page[StalledItem]):
+    """``GET /admin/molecules/stalled``: a scan-and-filter page, so it can hold fewer
+    items than it examined (``scanned``); ``next_cursor`` continues the scan."""
+
+    scanned: int = 0
+
+
+class AdminUsageRow(_Model):
+    """One row of ``GET /admin/usage``: weighted usage for one key on one UTC day."""
+
+    key_id: int
+    prefix: Optional[str] = None
+    principal: Optional[str] = None
+    name: Optional[str] = None
+    user_email: Optional[str] = None
+    weight: int = 0
+
+
+class UsagePage(_Model):
+    """``GET /admin/usage``: every key's weighted usage for one UTC day, heaviest first."""
+
+    day: Optional[date] = None
+    items: List[AdminUsageRow] = []
+    total_weight: int = 0
+
+    def __iter__(self) -> Iterator[AdminUsageRow]:  # type: ignore[override]
+        return iter(self.items)
+
+    def __len__(self) -> int:
+        return len(self.items)
