@@ -17,6 +17,7 @@ MAX_BUNDLE = 50
 
 
 def _link_of(result: Any) -> str:
+    """Pull the download link out of a job result or plain string."""
     if isinstance(result, dict):
         for key in ("url", "href", "download_url", "location"):
             if result.get(key):
@@ -40,6 +41,8 @@ def _relative(link: str, base_url: str) -> str:
 
 
 class Bundles(Resource):
+    """``client.bundles`` — many molecules' files as one zip."""
+
     @operation
     def download(
         self,

@@ -62,6 +62,8 @@ class Send:
 
 @dataclass
 class Sleep:
+    """Sleep for ``seconds`` before the next effect."""
+
     seconds: float
 
 
@@ -80,6 +82,8 @@ Op = Generator[Any, Any, Any]
 
 @dataclass
 class RetryPolicy:
+    """How many attempts and how much delay a retried request gets."""
+
     max_attempts: int = 5
     backoff_base: float = 0.5
     backoff_max: float = 30.0
@@ -95,6 +99,7 @@ class RetryPolicy:
 
 
 def _clean_params(params: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    """Drop ``None`` values and stringify bools/dates/collections for the query string."""
     if not params:
         return None
     out: Dict[str, Any] = {}
@@ -190,10 +195,12 @@ def request(
 
 
 def _same_origin(a: httpx.URL, b: httpx.URL) -> bool:
+    """True when ``a`` and ``b`` share scheme, host and port."""
     return (a.scheme, a.host, a.port) == (b.scheme, b.host, b.port)
 
 
 def json_of(response: httpx.Response) -> Any:
+    """Parse ``response`` as JSON, or ``None`` for an empty body."""
     if not response.content:
         return None
     return response.json()
@@ -205,6 +212,7 @@ _CD_FILENAME = re.compile(r"""filename\*?=(?:UTF-8'')?"?([^";]+)"?""", re.IGNORE
 
 
 def _target_path(effect: Send, response: httpx.Response) -> Path:
+    """Resolve the file path to write a streamed response to."""
     target = Path(effect.stream_to)  # type: ignore[arg-type]
     if target.is_dir():
         name = None
@@ -217,11 +225,13 @@ def _target_path(effect: Send, response: httpx.Response) -> Path:
 
 
 def _open_partial(target: Path) -> Any:
+    """Open a temporary ``.part`` file next to ``target`` for a streamed download."""
     fd, tmp = tempfile.mkstemp(prefix=f".{target.name}.", suffix=".part", dir=str(target.parent))
     return os.fdopen(fd, "wb"), tmp
 
 
 def _finish_partial(tmp: str, target: Path, ok: bool) -> None:
+    """Rename the partial file into place on success, else discard it."""
     if ok:
         os.replace(tmp, target)
     else:
@@ -235,12 +245,15 @@ def _finish_partial(tmp: str, target: Path, ok: bool) -> None:
 
 
 class SyncDriver:
+    """Runs operations against a real ``httpx.Client``, synchronously."""
+
     is_async = False
 
     def __init__(self, http: httpx.Client) -> None:
         self.http = http
 
     def _send(self, effect: Send) -> httpx.Response:
+        """Perform a ``Send`` effect, streaming to disk if requested."""
         if effect.stream_to is None:
             return self.http.send(effect.request)
         response = self.http.send(effect.request, stream=True)
@@ -264,6 +277,7 @@ class SyncDriver:
         return response
 
     def _perform(self, effect: Any) -> Any:
+        """Dispatch one effect to the matching handler."""
         if isinstance(effect, Send):
             return self._send(effect)
         if isinstance(effect, Sleep):
@@ -272,6 +286,7 @@ class SyncDriver:
         raise TypeError(f"unexpected effect {effect!r}")
 
     def run(self, gen: Op) -> Any:
+        """Drive `gen` to completion, performing its effects, and return its result."""
         value: Any = None
         error: Optional[BaseException] = None
         while True:
@@ -288,6 +303,7 @@ class SyncDriver:
                 error = exc
 
     def iterate(self, gen: Op) -> Iterable[Any]:
+        """Drive `gen`, yielding each value it ``Emit``s."""
         value: Any = None
         error: Optional[BaseException] = None
         while True:
@@ -306,12 +322,15 @@ class SyncDriver:
 
 
 class AsyncDriver:
+    """Runs operations against a real ``httpx.AsyncClient``, asynchronously."""
+
     is_async = True
 
     def __init__(self, http: httpx.AsyncClient) -> None:
         self.http = http
 
     async def _send(self, effect: Send) -> httpx.Response:
+        """Perform a ``Send`` effect, streaming to disk if requested."""
         if effect.stream_to is None:
             return await self.http.send(effect.request)
         response = await self.http.send(effect.request, stream=True)
@@ -335,6 +354,7 @@ class AsyncDriver:
         return response
 
     async def _perform(self, effect: Any) -> Any:
+        """Dispatch one effect to the matching handler."""
         if isinstance(effect, Send):
             return await self._send(effect)
         if isinstance(effect, Sleep):
@@ -343,6 +363,7 @@ class AsyncDriver:
         raise TypeError(f"unexpected effect {effect!r}")
 
     async def run(self, gen: Op) -> Any:
+        """Drive `gen` to completion, performing its effects, and return its result."""
         value: Any = None
         error: Optional[BaseException] = None
         while True:
@@ -359,6 +380,7 @@ class AsyncDriver:
                 error = exc
 
     async def iterate(self, gen: Op) -> Any:
+        """Drive `gen`, yielding each value it ``Emit``s."""
         value: Any = None
         error: Optional[BaseException] = None
         while True:

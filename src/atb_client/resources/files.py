@@ -31,6 +31,7 @@ DEFAULT_DOWNLOAD_TIMEOUT = 300.0
 
 
 def _list(client: Any, molid: int, hash: Optional[str], ff: Optional[str]):
+    """List a molecule's files (shared by `Files.list` and `MoleculeFiles.list`)."""
     response = yield from request(
         client,
         "GET",
@@ -50,6 +51,7 @@ def _download(
     hash: Optional[str],
     ff: Optional[str],
 ):
+    """Download one file (shared by `Files.download` and `MoleculeFiles.download`)."""
     return (
         yield from _ops.download(
             client,
@@ -63,6 +65,8 @@ def _download(
 
 
 class Files(Resource):
+    """``client.files`` — list and download any molecule's output files."""
+
     @operation
     def list(self, molid: int, *, hash: Optional[str] = None, ff: Optional[str] = None):
         """``GET /molecules/{molid}/files`` → :class:`FileList` (iterable over its
@@ -103,6 +107,7 @@ class MoleculeFiles:
 
     @operation
     def list(self, *, hash: Optional[str] = None, ff: Optional[str] = None):
+        """See :meth:`Files.list`."""
         return (yield from _list(self._client, self.molid, hash, ff))
 
     @operation

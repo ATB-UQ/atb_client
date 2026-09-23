@@ -44,6 +44,8 @@ def _molecule_from_job(client: Any, result: Any):
 
 
 class Molecules(Resource):
+    """``client.molecules`` — search, get, submit, and every per-molecule sub-resource."""
+
     @operation
     def get(self, molid: int):
         """``GET /molecules/{molid}`` → :class:`Molecule`. 404 → :class:`MoleculeNotFound`."""
@@ -329,6 +331,7 @@ class Molecules(Resource):
         return _ops._download_result(response, stream_to)
 
     def _sub(self, model: Any, molid: int, what: str, params: Optional[Dict[str, Any]] = None):
+        """Fetch and parse one of a molecule's ``GET`` sub-resources."""
         return (
             yield from _ops.model_call(
                 self._client,

@@ -12,6 +12,8 @@ DEFAULT_SEARCH_TIMEOUT = 600.0
 
 
 class Structures(Resource):
+    """``client.structures`` — structure search and RMSD alignment."""
+
     @operation
     def search(
         self,

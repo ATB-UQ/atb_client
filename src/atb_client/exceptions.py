@@ -77,18 +77,22 @@ class APIError(ATBError):
 
     @property
     def type(self) -> Optional[str]:
+        """The problem's ``type`` URL."""
         return self.problem.type
 
     @property
     def slug(self) -> Optional[str]:
+        """The last path segment of the problem's ``type`` URL."""
         return problem_slug(self.problem.type)
 
     @property
     def title(self) -> Optional[str]:
+        """The problem's ``title``."""
         return self.problem.title
 
     @property
     def detail(self) -> Optional[str]:
+        """The problem's ``detail``."""
         return self.problem.detail
 
     def __repr__(self) -> str:
@@ -100,6 +104,7 @@ class ValidationError(APIError):
 
     @property
     def errors(self) -> List[Any]:
+        """The field-level validation errors."""
         extra = self.problem.model_extra or {}
         if "errors" in extra:
             return list(extra["errors"])
@@ -129,6 +134,7 @@ class MoleculeNotFound(NotFound):
 
     @property
     def molid(self) -> Optional[int]:
+        """The molecule id that was not found."""
         return (self.problem.model_extra or {}).get("molid")
 
 
@@ -139,16 +145,19 @@ class MoleculeMoved(APIError):
 
     @property
     def molid(self) -> Optional[int]:
+        """The molecule id that was requested."""
         value = (self.problem.model_extra or {}).get("molid")
         return int(value) if value is not None else None
 
     @property
     def canonical_molid(self) -> Optional[int]:
+        """The id it was merged into."""
         value = (self.problem.model_extra or {}).get("canonical_molid")
         return int(value) if value is not None else None
 
     @property
     def location(self) -> Optional[str]:
+        """The redirect ``Location`` header, if a response is attached."""
         return self.response.headers.get("Location") if self.response is not None else None
 
 
@@ -167,6 +176,7 @@ class GenerationRequired(Conflict):
 
     @property
     def name(self) -> Optional[str]:
+        """The file name that was asked for."""
         return (self.problem.model_extra or {}).get("name")
 
 
@@ -183,15 +193,18 @@ class DuplicateMolecule(Conflict):
 
     @property
     def molid(self) -> Optional[int]:
+        """The id of the pre-existing molecule."""
         value = (self.problem.model_extra or {}).get("molid")
         return int(value) if value is not None else None
 
     @property
     def compound_id(self) -> Optional[int]:
+        """The compound id of the pre-existing molecule."""
         return (self.problem.model_extra or {}).get("compound_id")
 
     @property
     def molecule(self) -> Any:
+        """Fetch (and cache) the pre-existing molecule."""
         if self._molecule is not None:
             return self._molecule
         if self._client is None or self.molid is None:
@@ -203,6 +216,7 @@ class DuplicateMolecule(Conflict):
         return result
 
     async def _resolve_async(self, awaitable: Any) -> Any:
+        """Await the fetch and cache its result."""
         self._molecule = await awaitable
         return self._molecule
 
@@ -216,6 +230,7 @@ class ChemistryRejected(APIError):
 
     @property
     def reason(self) -> Optional[str]:
+        """Why the structure was rejected."""
         extra = self.problem.model_extra or {}
         return extra.get("reason") or self.problem.detail
 
@@ -228,6 +243,7 @@ class RemapRefused(ChemistryRejected):
 
     @property
     def report(self) -> Optional[Dict[str, Any]]:
+        """The complete atom-mapping report attached to the refusal."""
         return (self.problem.model_extra or {}).get("report")
 
 
@@ -236,6 +252,7 @@ class RateLimited(APIError):
 
     @property
     def retry_after(self) -> Optional[float]:
+        """Seconds to wait before retrying, from the ``Retry-After`` header."""
         return retry_after_seconds(self.response)
 
     @property
@@ -253,6 +270,7 @@ class ServiceUnavailable(ServerError):
 
     @property
     def retry_after(self) -> Optional[float]:
+        """Seconds to wait before retrying, from the ``Retry-After`` header."""
         return retry_after_seconds(self.response)
 
 
@@ -472,6 +490,7 @@ def exception_class_for(
     not_found: Type[NotFound] = NotFound,
     problem: Optional[Problem] = None,
 ) -> Type[APIError]:
+    """Pick the exception class for a status/slug pair, slug first."""
     if slug and slug in _BY_SLUG:
         cls = _BY_SLUG[slug]
         if cls is NotFound and not_found is not NotFound:
@@ -494,6 +513,7 @@ def error_from_response(
     not_found: Type[NotFound] = NotFound,
     client: Any = None,
 ) -> APIError:
+    """Build the mapped exception for an error response."""
     problem = parse_problem(response)
     cls = exception_class_for(
         response.status_code, problem_slug(problem.type), not_found=not_found, problem=problem

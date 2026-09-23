@@ -24,6 +24,7 @@ from typing import Any, Callable
 
 
 def _driver_of(obj: Any) -> Any:
+    """Return the driver of the client `obj` is bound to."""
     client = getattr(obj, "_client", None)
     if client is None:
         raise RuntimeError(
@@ -38,6 +39,7 @@ def operation(fn: Callable[..., Any]) -> Callable[..., Any]:
 
     @functools.wraps(fn)
     def wrapper(self: Any, *args: Any, **kwargs: Any) -> Any:
+        """Run the bound generator on its client's driver."""
         return _driver_of(self).run(fn(self, *args, **kwargs))
 
     wrapper.__atb_operation__ = fn  # type: ignore[attr-defined]
@@ -49,6 +51,7 @@ def stream_operation(fn: Callable[..., Any]) -> Callable[..., Any]:
 
     @functools.wraps(fn)
     def wrapper(self: Any, *args: Any, **kwargs: Any) -> Any:
+        """Iterate the bound generator on its client's driver."""
         return _driver_of(self).iterate(fn(self, *args, **kwargs))
 
     wrapper.__atb_operation__ = fn  # type: ignore[attr-defined]

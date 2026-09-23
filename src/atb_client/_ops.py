@@ -37,6 +37,7 @@ MOLECULE_POLL_FACTOR = 1.5
 
 
 def bind(model: Any, client: Any) -> Any:
+    """Bind `model` to `client`, if it supports binding, and return it."""
     if hasattr(model, "_bind"):
         model._bind(client)
     return model
@@ -46,19 +47,23 @@ class Deadline:
     """``timeout`` seconds from now; ``None`` means no deadline."""
 
     def __init__(self, timeout: Optional[float]) -> None:
+        """Start the deadline; `timeout=None` means it never expires."""
         self.timeout = timeout
         self.at = None if timeout is None else _clock.monotonic() + timeout
 
     def remaining(self) -> Optional[float]:
+        """Seconds left, or `None` with no deadline."""
         if self.at is None:
             return None
         return self.at - _clock.monotonic()
 
     def expired(self) -> bool:
+        """True once `remaining()` has reached zero."""
         remaining = self.remaining()
         return remaining is not None and remaining <= 0
 
     def clamp(self, delay: float) -> float:
+        """Shorten `delay` so it does not overrun the deadline."""
         remaining = self.remaining()
         return delay if remaining is None else max(0.0, min(delay, remaining))
 
@@ -67,6 +72,7 @@ class Deadline:
 
 
 def get_molecule(client: Any, molid: int) -> Op:
+    """Fetch a molecule by id."""
     response = yield from request(
         client, "GET", f"molecules/{int(molid)}", not_found=MoleculeNotFound
     )
@@ -74,6 +80,7 @@ def get_molecule(client: Any, molid: int) -> Op:
 
 
 def get_status(client: Any, molid: int) -> Op:
+    """Fetch a molecule's processing status."""
     response = yield from request(
         client, "GET", f"molecules/{int(molid)}/status", not_found=MoleculeNotFound
     )
@@ -97,6 +104,7 @@ def wait_molecule(
     poll_interval: float = 15.0,
     max_interval: float = 300.0,
 ) -> Op:
+    """Poll a molecule's status until it reaches a terminal stage, then fetch it."""
     deadline = Deadline(timeout)
     interval = poll_interval
     while True:
@@ -116,11 +124,13 @@ def wait_molecule(
 
 
 def get_job(client: Any, job_id: str) -> Op:
+    """Fetch a job by id."""
     response = yield from request(client, "GET", f"jobs/{job_id}")
     return bind(Job.model_validate(response.json()), client)
 
 
 def cancel_job(client: Any, job_id: str) -> Op:
+    """Cancel a job by id."""
     response = yield from request(client, "DELETE", f"jobs/{job_id}")
     body = json_of(response)
     return bind(Job.model_validate(body), client) if isinstance(body, dict) else None
@@ -309,6 +319,7 @@ def model_call(
 
 
 def _download_result(response: httpx.Response, stream_to: Optional[Path]) -> Any:
+    """Return the downloaded bytes, or the path written to when `stream_to` was given."""
     if stream_to is None:
         return response.content
     written = response.extensions.get("atb_written")
@@ -343,6 +354,7 @@ def page_of(
     bind(page, client)
 
     def fetch(cursor: str) -> Op:
+        """Fetch the page at `cursor`, wired the same way as the page it came from."""
         return page_of(
             client,
             model,
@@ -358,6 +370,7 @@ def page_of(
 
 
 def items_of(body: Any) -> Tuple[Any, ...]:
+    """Normalize a response body — a page dict, a bare list, or a single item — to a tuple."""
     if isinstance(body, dict) and "items" in body:
         return tuple(body["items"])
     if isinstance(body, builtins.list):

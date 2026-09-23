@@ -33,10 +33,13 @@ Id = Union[int, str]
 
 
 def _drop_none(**kwargs: Any) -> Dict[str, Any]:
+    """Drop keyword arguments whose value is ``None``."""
     return {k: v for k, v in kwargs.items() if v is not None}
 
 
 class AdminUsers(Resource):
+    """``client.admin.users`` — account listing, updates and key management."""
+
     @operation
     def list(
         self, q: Optional[str] = None, *, limit: Optional[int] = None, cursor: Optional[str] = None
@@ -137,6 +140,8 @@ class AdminUsers(Resource):
 
 
 class AdminMolecules(Resource):
+    """``client.admin.molecules`` — curation, cache and scan operations on one molecule."""
+
     @operation
     def update(
         self,
@@ -280,6 +285,8 @@ class AdminMolecules(Resource):
 
 
 class Admin(Resource):
+    """``client.admin`` — account, quota, audit and deletion-request operations."""
+
     def __init__(self, client: Any) -> None:
         super().__init__(client)
         self.users = AdminUsers(client)

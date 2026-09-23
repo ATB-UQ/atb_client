@@ -12,10 +12,13 @@ from .._base import Resource, operation
 
 
 def _drop_none(**kwargs: Any) -> Dict[str, Any]:
+    """Drop keyword arguments whose value is ``None``."""
     return {k: v for k, v in kwargs.items() if v is not None}
 
 
 class PipelineQM(Resource):
+    """``client.pipeline.qm`` — claim, poll and resolve QM calculations."""
+
     @operation
     def claim(self, *, level: int, n: int = 1, runner_id: str, group: Optional[str] = None):
         """``POST /pipeline/qm/claims`` → the claimed molecules with their decks/inputs."""
@@ -88,6 +91,8 @@ class PipelineQM(Resource):
 
 
 class PipelineMolecules(Resource):
+    """``client.pipeline.molecules`` — worker writes to a molecule's own fields."""
+
     @operation
     def update(self, molid: int, **fields: Any):
         """``PATCH /pipeline/molecules/{molid}`` — ``cpu_time``, ``max_qm_level``, ``iupac``."""
@@ -142,6 +147,8 @@ class PipelineMolecules(Resource):
 
 
 class Pipeline(Resource):
+    """``client.pipeline`` — the service-key-only worker surface."""
+
     def __init__(self, client: Any) -> None:
         super().__init__(client)
         self.qm = PipelineQM(client)

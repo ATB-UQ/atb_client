@@ -32,6 +32,7 @@ USER_AGENT = f"atb-client/{__version__} python/{platform.python_version()}"
 
 
 def _timeout(value: TimeoutTypes, profile_value: Optional[float]) -> httpx.Timeout:
+    """Resolve a timeout argument against a profile default and the package default."""
     if isinstance(value, httpx.Timeout):
         return value
     if value is None:
@@ -43,6 +44,8 @@ def _timeout(value: TimeoutTypes, profile_value: Optional[float]) -> httpx.Timeo
 
 
 class _ClientBase:
+    """Shared setup for :class:`ATBClient` and :class:`AsyncATBClient`."""
+
     is_async = False
 
     def _setup(
@@ -55,6 +58,7 @@ class _ClientBase:
         max_retry_after: float,
         headers: Optional[dict],
     ) -> dict:
+        """Resolve config and build the keyword arguments for the underlying httpx client."""
         config = resolve(api_key=api_key, base_url=base_url, profile=profile)
         self.base_url = config.base_url
         self.profile = config.profile
@@ -75,6 +79,7 @@ class _ClientBase:
         }
 
     def _attach_resources(self) -> None:
+        """Instantiate and attach every resource namespace to this client."""
         self.molecules = Molecules(self)
         self.files = Files(self)
         self.bundles = Bundles(self)
@@ -107,6 +112,7 @@ class _ClientBase:
 
     @property
     def _client(self) -> Any:  # so client-level helpers can use @operation too
+        """Return self, so client-level helpers can use ``@operation`` too."""
         return self
 
     def __repr__(self) -> str:
@@ -146,6 +152,7 @@ class ATBClient(_ClientBase):
         self._attach_resources()
 
     def close(self) -> None:
+        """Close the underlying HTTP connection pool."""
         self._http.close()
 
     def __enter__(self) -> ATBClient:
@@ -186,6 +193,7 @@ class AsyncATBClient(_ClientBase):
         self._attach_resources()
 
     async def aclose(self) -> None:
+        """Close the underlying HTTP connection pool."""
         await self._http.aclose()
 
     async def __aenter__(self) -> AsyncATBClient:

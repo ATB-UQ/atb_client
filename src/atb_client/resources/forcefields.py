@@ -10,10 +10,13 @@ from ..models import ForcefieldList
 
 
 def _text_or_path(result: Any) -> Any:
+    """Decode a fetched result to text unless it is a path."""
     return result.decode("utf-8") if isinstance(result, bytes) else result
 
 
 class Forcefields(Resource):
+    """``client.forcefields`` — the IFP/MTB reference files per force field."""
+
     @operation
     def list(self):
         """``GET /forcefields`` → :class:`ForcefieldList` (iterable over

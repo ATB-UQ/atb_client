@@ -131,6 +131,8 @@ JOB_STATES = ("queued", "running", "done", "failed")
 
 
 class _Model(BaseModel):
+    """Base of every response model: extra fields kept, alias/name both accepted."""
+
     model_config = ConfigDict(extra="allow", populate_by_name=True)
 
 
@@ -140,6 +142,7 @@ class _Bound(_Model):
     _client: Any = PrivateAttr(default=None)
 
     def _bind(self, client: Any) -> _Bound:
+        """Attach the client this instance can make further calls through."""
         self._client = client
         return self
 
@@ -177,10 +180,12 @@ class MoleculeStatus(_Model):
 
     @property
     def succeeded(self) -> bool:
+        """True on a successful terminal stage (``finished`` or ``capped``)."""
         return self.stage in SUCCESS_STAGES
 
     @property
     def is_terminal(self) -> bool:
+        """True once the molecule has reached any terminal stage."""
         return self.terminal or self.stage in TERMINAL_STAGES
 
 
@@ -325,6 +330,7 @@ class FileList(_Model):
 
     @property
     def names(self) -> List[str]:
+        """The file names of every item."""
         return [item.name for item in self.items]
 
     @property
@@ -356,6 +362,7 @@ class Job(_Bound):
 
     @property
     def done(self) -> bool:
+        """True once the job has reached ``done`` or ``failed``."""
         return self.state in ("done", "failed")
 
     @operation
@@ -375,12 +382,14 @@ class Job(_Bound):
 
     @operation
     def refresh(self):
+        """Fetch this job again; returns a new :class:`Job`."""
         from . import _ops
 
         return (yield from _ops.get_job(self._client, self.id))
 
     @operation
     def cancel(self):
+        """Cancel this job; returns the updated :class:`Job`, if the server sends one."""
         from . import _ops
 
         return (yield from _ops.cancel_job(self._client, self.id))
@@ -418,6 +427,7 @@ class Page(_Bound, Generic[T]):
 
     @property
     def has_more(self) -> bool:
+        """True when a `next_cursor` is available."""
         return self.next_cursor is not None
 
     @stream_operation
@@ -592,6 +602,8 @@ class Tautomers(_Model):
 
 
 class Conformation(_Model):
+    """One item of :class:`Conformations`: another molecule of the same compound."""
+
     molid: int
     energy: Optional[float] = None  # kJ/mol
 
@@ -610,6 +622,8 @@ class Conformations(_Model):
 
 
 class Forcefield(_Model):
+    """One entry of ``GET /forcefields``."""
+
     name: str
     ifp_formats: List[str] = []
     mtb_formats: List[str] = []
@@ -740,18 +754,24 @@ class TautomerGroup(Page[TautomerMember]):
 
 
 class StatisticPoint(_Model):
+    """One dated value of a site indicator."""
+
     date: date
     value: Optional[float] = None
     sample_size: Optional[int] = None
 
 
 class Indicator(_Model):
+    """A site indicator's latest value."""
+
     name: str
     unit: Optional[str] = None
     latest: Optional[StatisticPoint] = None
 
 
 class IndicatorSeries(_Model):
+    """A site indicator's full history of :class:`StatisticPoint`."""
+
     name: str
     unit: Optional[str] = None
     points: List[StatisticPoint] = []
@@ -767,6 +787,8 @@ class Statistics(_Model):
 
 
 class RMSDInput(_Model):
+    """One structure of an :class:`RMSDResult`'s ``inputs``, in matrix order."""
+
     index: int
     molid: Optional[int] = None
     source: Optional[str] = None  # uploaded | pdb_allatom_optimised | pdb_normalised
@@ -799,6 +821,8 @@ class Health(_Model):
 
 
 class KeyUsage(_Model):
+    """One key's contribution to a rate limit shared across several keys."""
+
     key_id: int
     prefix: Optional[str] = None
     weight: int = 0
@@ -936,15 +960,19 @@ class BatchItem(_Model):
 
     @property
     def ok(self) -> bool:
+        """True when this item was submitted (or adopted a duplicate) without error."""
         return self.molid is not None and self.problem is None
 
     @property
     def duplicate(self) -> bool:
+        """True when this item was refused because it already exists."""
         type_ = str(self.problem.get("type") or "") if self.problem else ""
         return type_.endswith("duplicate-molecule")
 
 
 class BatchResult(_Model):
+    """``POST /molecules:batch``'s response: one :class:`BatchItem` per input record."""
+
     items: List[BatchItem] = []
     submitted: int = 0
     refused: int = 0

@@ -64,13 +64,14 @@ _FORMAT_BY_SUFFIX = {
 
 
 class UsageError(Exception):
-    pass
+    """A CLI argument error; caught by `main` and reported as exit code 2."""
 
 
 # --------------------------------------------------------------------------- output
 
 
 def _jsonable(value: Any) -> Any:
+    """Recursively convert models, paths and containers to JSON-safe values."""
     if isinstance(value, BaseModel):
         return value.model_dump(mode="json", by_alias=True, exclude_none=True)
     if isinstance(value, Path):
@@ -83,6 +84,7 @@ def _jsonable(value: Any) -> Any:
 
 
 def _table(value: Any) -> str:
+    """Render a value as a human-readable table or line, for `--table`."""
     value = _jsonable(value)
     if isinstance(value, dict):
         width = max((len(k) for k in value), default=0)
@@ -105,6 +107,7 @@ def _table(value: Any) -> str:
 
 
 def _cell(value: Any) -> str:
+    """Render one table cell."""
     if value is None:
         return ""
     if isinstance(value, (dict, list)):
@@ -113,6 +116,7 @@ def _cell(value: Any) -> str:
 
 
 def _emit(args: argparse.Namespace, value: Any) -> None:
+    """Print `value` as JSON, or as a table with `--table`."""
     if getattr(args, "table", False):
         print(_table(value))
     else:
@@ -120,6 +124,7 @@ def _emit(args: argparse.Namespace, value: Any) -> None:
 
 
 def _emit_error(kind: str, message: str, **extra: Any) -> None:
+    """Print a JSON error object to stderr."""
     body = {"error": kind, "message": message}
     body.update({k: v for k, v in extra.items() if v is not None})
     print(json.dumps(_jsonable(body), indent=2), file=sys.stderr)
@@ -129,6 +134,7 @@ def _emit_error(kind: str, message: str, **extra: Any) -> None:
 
 
 def _status_exit(stage: str, terminal: bool) -> int:
+    """Map a molecule status to the CLI exit code."""
     if stage in ("failed", "rejected"):
         return EXIT_FAILED
     if stage in ("finished", "capped"):
@@ -137,17 +143,20 @@ def _status_exit(stage: str, terminal: bool) -> int:
 
 
 def cmd_get(atb: ATBClient, args: argparse.Namespace) -> int:
+    """``atb get MOLID``: print a molecule's metadata."""
     _emit(args, atb.molecules.get(args.molid))
     return EXIT_OK
 
 
 def cmd_status(atb: ATBClient, args: argparse.Namespace) -> int:
+    """``atb status MOLID``: poll once and exit with a status-derived code."""
     status = atb.molecules.status(args.molid)
     _emit(args, status)
     return _status_exit(status.stage, status.terminal)
 
 
 def _read(path: str) -> str:
+    """Read `path`, or stdin for ``-``."""
     if path == "-":
         return sys.stdin.read()
     try:
@@ -157,6 +166,7 @@ def _read(path: str) -> str:
 
 
 def cmd_submit(atb: ATBClient, args: argparse.Namespace) -> int:
+    """``atb submit FILE``: submit a structure, adopting an existing duplicate."""
     fmt = args.format or _FORMAT_BY_SUFFIX.get(Path(args.file).suffix.lower())
     if fmt is None:
         raise UsageError("cannot tell the structure format from the file name; pass --format")
@@ -184,6 +194,7 @@ def cmd_submit(atb: ATBClient, args: argparse.Namespace) -> int:
 
 
 def cmd_submit_batch(atb: ATBClient, args: argparse.Namespace) -> int:
+    """``atb submit-batch FILE``: submit up to 100 structures from an SDF."""
     result = atb.molecules.submit_batch(
         sdf=_read(args.file),
         netcharge_field=args.charge_field,
@@ -197,6 +208,7 @@ def cmd_submit_batch(atb: ATBClient, args: argparse.Namespace) -> int:
 
 
 def cmd_download(atb: ATBClient, args: argparse.Namespace) -> int:
+    """``atb download MOLID NAMES...``: download named files of one molecule."""
     out_dir = Path(args.output)
     out_dir.mkdir(parents=True, exist_ok=True)
     written = []
@@ -210,6 +222,7 @@ def cmd_download(atb: ATBClient, args: argparse.Namespace) -> int:
 
 
 def cmd_remap(atb: ATBClient, args: argparse.Namespace) -> int:
+    """``atb remap MOLID FILE``: this molecule's outputs in your structure's atom order."""
     fmt = args.format or _FORMAT_BY_SUFFIX.get(Path(args.file).suffix.lower())
     out = Path(args.output)
     if out.is_dir() or not out.suffix:
@@ -231,6 +244,7 @@ def cmd_remap(atb: ATBClient, args: argparse.Namespace) -> int:
 
 
 def cmd_bundle(atb: ATBClient, args: argparse.Namespace) -> int:
+    """``atb bundle NAMES...``: download files of many molecules as one bundle."""
     molids: List[int] = []
     if args.molids:
         molids += [int(m) for m in args.molids.split(",") if m.strip()]
@@ -245,6 +259,7 @@ def cmd_bundle(atb: ATBClient, args: argparse.Namespace) -> int:
 
 
 def cmd_search(atb: ATBClient, args: argparse.Namespace) -> int:
+    """``atb search``: search molecules by filter."""
     filters = {
         "inchi_key": args.inchi_key,
         "inchi": args.inchi,
@@ -270,6 +285,7 @@ def cmd_search(atb: ATBClient, args: argparse.Namespace) -> int:
 
 
 def cmd_ifp(atb: ATBClient, args: argparse.Namespace) -> int:
+    """``atb ifp FF``: a force field's interaction parameter file."""
     result = atb.forcefields.ifp(args.ff, format=args.format, path=args.output)
     if args.output:
         _emit(args, {"path": str(result)})
@@ -279,6 +295,7 @@ def cmd_ifp(atb: ATBClient, args: argparse.Namespace) -> int:
 
 
 def cmd_keys_create(atb: ATBClient, args: argparse.Namespace) -> int:
+    """``atb keys create``: mint an API key, shown once."""
     scopes = [s for s in args.scopes.split(",") if s] if args.scopes else None
     try:
         days = days_of(args.expires)
@@ -295,17 +312,20 @@ def cmd_keys_create(atb: ATBClient, args: argparse.Namespace) -> int:
 
 
 def cmd_keys_list(atb: ATBClient, args: argparse.Namespace) -> int:
+    """``atb keys list``: list your API keys."""
     _emit(args, atb.me.keys.list())
     return EXIT_OK
 
 
 def cmd_keys_revoke(atb: ATBClient, args: argparse.Namespace) -> int:
+    """``atb keys revoke ID``: revoke an API key."""
     result = atb.me.keys.revoke(args.id)
     _emit(args, result if result is not None else {"revoked": args.id})
     return EXIT_OK
 
 
 def cmd_usage(atb: ATBClient, args: argparse.Namespace) -> int:
+    """``atb usage``: today's request counters and limits."""
     _emit(args, atb.me.usage())
     return EXIT_OK
 
@@ -363,7 +383,10 @@ def cmd_admin_audit(atb: ATBClient, args: argparse.Namespace) -> int:
 
 
 class _Parser(argparse.ArgumentParser):
+    """An ``ArgumentParser`` whose usage errors are JSON on stderr, exit code 2."""
+
     def error(self, message: str) -> None:  # type: ignore[override]
+        """Print a JSON usage error and exit with `EXIT_USAGE`."""
         self.print_usage(sys.stderr)
         _emit_error("usage", message)
         raise SystemExit(EXIT_USAGE)
@@ -385,6 +408,7 @@ def _common(suppress: bool) -> argparse.ArgumentParser:
 
 
 def build_parser() -> argparse.ArgumentParser:
+    """Build the `atb` CLI's argument parser, with every subcommand."""
     top = _common(suppress=False)
     common = _common(suppress=True)
 
@@ -401,6 +425,7 @@ def build_parser() -> argparse.ArgumentParser:
     sub.required = True
 
     def add(name: str, func: Any, help: str) -> argparse.ArgumentParser:
+        """Register one top-level subcommand sharing the common options."""
         p = sub.add_parser(name, help=help, parents=[common])
         p.set_defaults(func=func)
         return p
@@ -548,6 +573,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
+    """Run the `atb` CLI: parse arguments, dispatch, map exceptions to exit codes."""
     parser = build_parser()
     try:
         args = parser.parse_args(argv)

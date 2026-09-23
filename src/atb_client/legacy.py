@@ -90,6 +90,7 @@ class ATB_Mol:
             setattr(self, key, value)
 
     def download_file(self, **kwargs: Any) -> Optional[str]:
+        """Download a file of this molecule, as ``atb_api`` did."""
         kwargs.pop("molid", None)
         return self.api.Molecules.download_file(molid=self.molid, **kwargs)
 
@@ -99,19 +100,25 @@ class ATB_Mol:
 
 
 def _as_dict(molecule: Molecule) -> Dict[str, Any]:
+    """Dump a v1 `Molecule` model to a plain dict of JSON-safe fields."""
     return molecule.model_dump(mode="json")
 
 
 class _Namespace:
+    """Base of the legacy namespaces (`Molecules`, `RMSD`), holding the owning `API`."""
+
     def __init__(self, api: API) -> None:
         self.api = api
 
     @property
     def _v1(self) -> ATBClient:
+        """The underlying `ATBClient`."""
         return self.api.client
 
 
 class Molecules(_Namespace):
+    """``atb_api``'s ``Molecules`` namespace, on top of v1."""
+
     def search(self, **kwargs: Any) -> Any:
         """``GET /molecules`` over every page. ``return_type='molids'`` returns ints."""
         return_type = kwargs.pop("return_type", "molecules")
@@ -133,6 +140,7 @@ class Molecules(_Namespace):
         molids: Optional[Iterable[ATB_MOLID]] = None,
         **kwargs: Any,
     ) -> Union[ATB_Mol, List[ATB_Mol]]:
+        """Fetch one molecule by `molid`, or several by `molids`."""
         if (molid is None) == (molids is None):
             raise ValueError("provide exactly one of molid=X or molids=[X, Y]")
         if molid is not None:
@@ -142,6 +150,7 @@ class Molecules(_Namespace):
         return [ATB_Mol(self.api, _as_dict(m)) for m in found]
 
     def molids(self, **kwargs: Any) -> List[ATB_Mol]:
+        """Like `molid`, always returning a list."""
         result = self.molid(**kwargs)
         return result if isinstance(result, list) else [result]
 
@@ -208,6 +217,7 @@ class Molecules(_Namespace):
 
 
 def _molids_list(value: Any) -> List[int]:
+    """Parse a comma-separated string or iterable of ints into a list of ints."""
     if isinstance(value, str):
         return [int(v) for v in value.split(",") if v.strip()]
     return [int(v) for v in value]
@@ -219,6 +229,7 @@ class RMSD(_Namespace):
     the two-structure value, ``rmsd_matrix`` the rest)."""
 
     def _call(self, kwargs: Dict[str, Any]) -> Any:
+        """Run the RMSD call for either the `molids=` or `reference_pdb=`/`pdb_N=` form."""
         if "molids" in kwargs:
             result = self._v1.structures.rmsd(molids=_molids_list(kwargs["molids"]))
         elif "reference_pdb" in kwargs and "pdb_0" in kwargs:
@@ -229,9 +240,11 @@ class RMSD(_Namespace):
         return result.model_dump(mode="json")
 
     def align(self, **kwargs: Any) -> Any:
+        """Alias of `matrix`: v1 answers both calls the same way."""
         return self._call(kwargs)
 
     def matrix(self, **kwargs: Any) -> Any:
+        """Return the RMSD matrix for `molids=` or `reference_pdb=`/`pdb_N=`."""
         return self._call(kwargs)
 
 
@@ -281,4 +294,5 @@ class API:
         self.RMSD = RMSD(self)
 
     def close(self) -> None:
+        """Close the underlying `ATBClient`."""
         self.client.close()

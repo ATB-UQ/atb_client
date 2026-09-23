@@ -46,6 +46,8 @@ DEFAULT_PROFILE = "default"
 
 
 def config_path() -> Path:
+    """Return the config file path: `ATB_CONFIG`, else `$XDG_CONFIG_HOME/atb/config.toml`,
+    else `~/.config/atb/config.toml`."""
     explicit = os.environ.get("ATB_CONFIG")
     if explicit:
         return Path(explicit).expanduser()
@@ -58,6 +60,7 @@ def config_path() -> Path:
 
 
 def _loads(text: str) -> Dict[str, Any]:
+    """Parse TOML text, using `tomllib` on 3.11+ and a minimal reader below it."""
     if sys.version_info >= (3, 11):
         import tomllib
 
@@ -76,11 +79,13 @@ _ESCAPES = {"n": "\n", "t": "\t", "r": "\r", '"': '"', "\\": "\\"}
 
 
 def _key(part: str) -> str:
+    """Strip surrounding quotes from a TOML key part."""
     part = part.strip()
     return part[1:-1] if part.startswith('"') else part
 
 
 def _strip_comment(value: str) -> str:
+    """Remove a trailing `#` comment from a line, respecting quoted strings."""
     out, quote = [], None
     for i, ch in enumerate(value):
         if quote:
@@ -95,6 +100,7 @@ def _strip_comment(value: str) -> str:
 
 
 def _value(raw: str, lineno: int) -> Any:
+    """Parse a TOML scalar value: string, bool, int or float."""
     raw = _strip_comment(raw)
     if len(raw) >= 2 and raw[0] == raw[-1] == "'":
         return raw[1:-1]
@@ -125,6 +131,7 @@ def _value(raw: str, lineno: int) -> Any:
 
 
 def _loads_minimal(text: str) -> Dict[str, Any]:
+    """Parse the subset of TOML `resolve` needs, for Python < 3.11."""
     root: Dict[str, Any] = {}
     table = root
     for lineno, line in enumerate(text.splitlines(), 1):
@@ -148,6 +155,7 @@ def _loads_minimal(text: str) -> Dict[str, Any]:
 
 
 def load_config_file(path: Optional[Path] = None) -> Dict[str, Any]:
+    """Load and parse the config file, or `{}` if it does not exist."""
     path = path or config_path()
     try:
         text = path.read_text(encoding="utf-8")
@@ -163,6 +171,8 @@ def load_config_file(path: Optional[Path] = None) -> Dict[str, Any]:
 
 @dataclass
 class ResolvedConfig:
+    """The api_key/base_url/timeout/profile resolved for one client construction."""
+
     api_key: Optional[str]
     base_url: str
     timeout: Optional[float]
@@ -171,6 +181,7 @@ class ResolvedConfig:
 
 
 def _check_url(url: str) -> str:
+    """Validate `url` is an absolute http(s) URL and refuse plain http off localhost."""
     parts = urlsplit(url)
     if parts.scheme not in ("https", "http") or not parts.netloc:
         raise ConfigurationError(f"base_url must be an absolute http(s) URL, got {url!r}")
@@ -196,6 +207,7 @@ def resolve(
     *,
     config_file: Optional[Path] = None,
 ) -> ResolvedConfig:
+    """Resolve the api_key/base_url/timeout to use, in argument > env > profile order."""
     explicit_profile = profile or os.environ.get("ATB_PROFILE")
     profile_name = explicit_profile or DEFAULT_PROFILE
     data = load_config_file(config_file)

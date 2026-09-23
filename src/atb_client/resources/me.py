@@ -63,6 +63,8 @@ class Keys(Resource):
 
 
 class Me(Resource):
+    """``client.me`` — the caller's identity, usage, keys and molecules."""
+
     def __init__(self, client: Any) -> None:
         super().__init__(client)
         self.keys = Keys(client)

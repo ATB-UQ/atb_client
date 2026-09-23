@@ -12,12 +12,15 @@ import time
 
 
 def monotonic() -> float:
+    """Return a monotonic clock reading, in seconds."""
     return time.monotonic()
 
 
 def sleep(seconds: float) -> None:
+    """Block the calling thread for `seconds`."""
     time.sleep(seconds)
 
 
 async def async_sleep(seconds: float) -> None:
+    """Suspend the calling coroutine for `seconds`."""
     await asyncio.sleep(seconds)

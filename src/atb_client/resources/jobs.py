@@ -11,6 +11,8 @@ from ..models import Job
 
 
 class Jobs(Resource):
+    """``client.jobs`` — the D8 jobs behind anything slow."""
+
     @operation
     def get(self, job_id: str):
         """``GET /jobs/{id}`` → :class:`Job`."""
