@@ -31,9 +31,9 @@ class Structures(Resource):
 
         ``netcharge="*"`` matches any charge. The search is budgeted (~105 s
         server-side): ``.complete`` is ``False`` when some candidates were not aligned
-        in time (listed with ``compared=False``). ``503
-        structure-service-unavailable`` if a SMILES structure is given while the NCI
-        cactus service is down; ``422`` if the structure could not be read.
+        in time (listed with ``compared=False``). ``422`` if the structure could not
+        be read or built, or if a SMILES's own formal charge is not ``netcharge``
+        (``netcharge-mismatch``).
 
         With ``wait=False`` the call returns at once with a :class:`Job` whose
         ``.result(timeout=...)`` blocks for the same shape (as a raw dict); a search
