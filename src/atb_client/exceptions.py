@@ -383,6 +383,8 @@ _BY_SLUG: Dict[str, Type[APIError]] = {
     "server-error": ServerError,
     "internal-error": ServerError,
     "service-unavailable": ServiceUnavailable,
+    # No longer emitted since 2026-09-25 (SMILES are built locally, not by NCI cactus);
+    # kept so an older server's answer still maps.
     "structure-service-unavailable": ServiceUnavailable,
     # Emitted by the server's WP0/WP1 code (website/website/api_v1), 2026-09-23.
     "bad-request": ValidationError,
