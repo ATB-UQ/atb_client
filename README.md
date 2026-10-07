@@ -12,16 +12,32 @@ simulation engine wants, and search what already exists — from a script, with 
 - typed exceptions carrying the server's problem body
 - an `atb` CLI whose exit codes a workflow engine can branch on
 
-> **Status: 0.1.0.dev0.** The v1 server is being built alongside this package. Everything
-> that *reads* — molecules, their files and sub-resources, reference data, your account and
-> keys — matches the server's published OpenAPI document (work packages 0–2) and is checked
-> against it by `tests/test_contract.py`. Submission, batches, bundles, structure search, jobs,
-> the admin and pipeline surfaces are written to the API design and are not served yet; see
-> [What the server serves today](#what-the-server-serves-today). `pipeline.*` (service keys
-> only) matches the WP6 routes: `qm.local_job`, `qm.gamess_job`, `qm.offer`, `qm.accept`
-> (never retried), `qm.release`, `qm.sync`, `qm.local_result`, `qm.local_failure`, `qm.logs`,
-> and `molecules.remap_compound`, `update_compound`, `recompute_cpu_time`,
-> `generate_topology`, `write_lgf`, `put_validation`, `notify`.
+> **Status: 0.1.0.dev0, the current ATB client.** The API v1 server has been live since
+> 2026-09-24 (`website/website/api_v1/`, design in the platform repo's `docs/api_v1_plan.md`) and
+> serves the read surface, submission, batches, bundles, structure search, jobs, the admin
+> surface and the service-key `pipeline.*` routes (`qm.local_job`, `qm.gamess_job`, `qm.offer`,
+> `qm.accept` (never retried), `qm.release`, `qm.sync`, `qm.local_result`, `qm.local_failure`,
+> `qm.logs`, and `molecules.remap_compound`, `update_compound`, `recompute_cpu_time`,
+> `generate_topology`, `write_lgf`, `put_validation`, `notify`). The package is used in
+> production by the pipeline drivers; it is not yet released on PyPI (install from GitHub).
+> `tests/test_contract.py` checks the client against the server's published OpenAPI document.
+
+## The three ATB client libraries
+
+| Package (import name) | Talks to | Status | Who uses it |
+|---|---|---|---|
+| `atb_client` (`atb_client`) | API **v1** (`/api/v1`, keyed, JSON, typed) | **Current.** New code goes here. Includes `atb_client.legacy.API`, an `atb_api`-compatible shim on v1 | `website` (API docs), `pipeline`, `compute_tasks`, `atb_submission_targets`, `dihedral_gap_service`, `dihedral_scan_service`, `atb_microstates`, `rotamer_ladder`, `atb_api_job_pipeline` (v1 mode) |
+| `atb_api_public` (`atb_api`) | API **v0.1** (token in query string, YAML/JSON/pickle) | **Public legacy.** The package users `pip install` from GitHub; frozen except for fixes the platform needs | `atb_api_job_pipeline` (v0.1 mode), `dihedral_fragments`, `gromos_job_wrapper`, `amber_converter`, `pyscf_interface`, `xTB_interface`, `dihedral_scan_service` (tests), `orbmol_interface` |
+| `API_client` (`API_client`) | API **v0.1** | **Internal legacy fork** of `atb_api` with extra namespaces (`Users`, `Events`, `Validations`, `Compounds`, `Fragments`, `Dihedrals`, solvation free energies) and the internal-token header. Not for users | `website/website/tasks/*`, `compute_tasks`, `pipeline`, `core` (tests), `solvation_fe_ti`, `gromos_job_wrapper`, `atb_condensed_phase`, `atb_submission_targets`, `dihedral_*`, `fragment_merger`, `Blind_RMSD` |
+
+`atb_api` and `API_client` are the same code base (~460 differing lines, the fork being the larger one)
+and are both API v0.1 clients; v0.1 is kept running for them while callers move to v1. Several
+platform callers choose at run time: with a service key in the keyring (`atb_server_settings.secrets.service_api_key`)
+they use `atb_client` on v1, without one they fall back to `API_client`/`atb_api` and the internal token
+(`pipeline/api_v1.py`, `atb_api_job_pipeline/api.py`). `atb_client` is import-name-independent of the two,
+so all three install side by side. Migration path for an `atb_api` script: change the import to
+`atb_client.legacy`, then to `ATBClient` (`atb_client` docs, "Migrating from atb_api").
+Checked 2026-10-07 by grep over the sibling checkouts; scripts under `old/` and `.worktrees/` excluded.
 
 ## Install
 
@@ -126,14 +142,11 @@ return molecule 21; the key is sent on only while the redirect stays on the same
 
 ### What the server serves today
 
-These calls are written to the API design (plan §6) but the server does not have their routes
-yet, so they currently fail with `NotFound` (or `APIError` 405): `molecules.submit`,
-`molecules.submit_batch`, `molecules.update`, `molecules.request_deletion`, `molecules.flag`,
-`bundles.download`, `structures.search`, `jobs.*`, `admin.*`, `admin.molecules.regenerate`
-and `pipeline.*`. Until topology generation runs as a server-side job, downloading a file
-that is not cached raises `GenerationRequired` (409); afterwards the same call waits for the
-job. `tests/test_contract.py` keeps this list honest: it fails as soon as the server's schema
-gains one of these routes.
+Everything this client wraps has a route on the live server (the earlier "not served yet" list,
+which covered submission, bundles, structure search, jobs, admin and pipeline calls, is obsolete
+as of 2026-09-24). Downloading a file that is not cached waits for a server-side generation job;
+`GenerationRequired` (409) is raised only where the server says the file must be generated first.
+`pipeline.*` and `admin.*` need a service or admin key.
 
 ### Molecule stages
 
