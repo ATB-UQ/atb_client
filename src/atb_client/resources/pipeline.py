@@ -13,6 +13,12 @@ Retries: the idempotent calls retry like any other (a re-sent result overwrites 
 store and the ledger row; a late failure report is a no-op). ``qm.accept`` does **not**
 retry: a retried accept whose first attempt had succeeded would be refused as "already
 locked", and the caller could not tell the two apart.
+
+Caution (review 2026-10): ``qm.local_job`` and ``qm.gamess_job`` open a ledger row and
+answer ``409 already-run`` without ``rerun``, so they are *not* idempotent either, yet they
+use the default retry (429/502/503/504, connection errors). A retry after a lost answer
+raises ``Conflict`` for a job the server did hand out. No production 502/503/504 on these
+routes has been logged; passing ``retry=False`` here would be a behaviour change.
 """
 
 from __future__ import annotations

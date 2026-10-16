@@ -340,9 +340,8 @@ class FileList(_Model):
 
 
 class Job(_Bound):
-    """A server-side job (the D8 convention for anything that may be slow).
-
-    Not served yet: ``/jobs`` arrives with WP3, so its shape follows the plan (§6)."""
+    """A server-side job (the D8 convention for anything that may be slow): the
+    ``GET /jobs/{id}`` resource, also the body of a ``202 Accepted``."""
 
     id: Optional[str] = None
     kind: Optional[str] = None
