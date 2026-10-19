@@ -175,6 +175,32 @@ def test_rotamer_job_exists_names_the_job(api, client):
     assert (info.value.job_id, info.value.state) == (3, "complete")
 
 
+def test_rotamer_job_exists_can_return_the_job(api, client):
+    api.post("/admin/rotamer-jobs").respond(
+        409, json=problem("rotamer-job-exists", 409, job_id=3, state="running")
+    )
+    route = api.get("/rotamer-jobs/3").respond(200, json=job())
+    result = client.admin.rotamer_jobs.create(compound_id=7, if_exists="return")
+    assert route.called and result.id == 3
+
+
+def test_async_rotamer_job_exists_can_return_the_job(api):
+    async def main_():
+        async with AsyncATBClient(api_key=KEY, base_url=BASE) as atb:
+            api.post("/admin/rotamer-jobs").respond(
+                409, json=problem("rotamer-job-exists", 409, job_id=3, state="running")
+            )
+            api.get("/rotamer-jobs/3").respond(200, json=job())
+            return await atb.admin.rotamer_jobs.create(compound_id=7, if_exists="return")
+
+    assert asyncio.run(main_()).id == 3
+
+
+def test_if_exists_is_checked(client):
+    with pytest.raises(ValueError):
+        client.admin.rotamer_jobs.create(compound_id=7, if_exists="ignore")
+
+
 def test_admin_cancel(api, client):
     route = api.delete("/admin/rotamer-jobs/3").respond(202, json=job(cancel_requested=True))
     result = client.admin.rotamer_jobs.cancel(3)

@@ -397,6 +397,7 @@ def cmd_admin_rotamer_create(atb: ATBClient, args: argparse.Namespace) -> int:
         public=args.public,
         dry_run=args.dry_run,
         force=args.force,
+        if_exists=args.if_exists,
     )
     _emit(args, job)
     return EXIT_OK
@@ -680,6 +681,13 @@ def build_parser() -> argparse.ArgumentParser:
     vis.add_argument("--private", dest="public", action="store_false")
     p.add_argument("--dry-run", action="store_true", dest="dry_run", help="submit nothing")
     p.add_argument("--force", action="store_true", help="allow another job for a finished one")
+    p.add_argument(
+        "--if-exists",
+        choices=["raise", "return"],
+        default="raise",
+        dest="if_exists",
+        help="when the compound already has a job: fail (default) or print that job",
+    )
     p = arj_sub.add_parser("cancel", help="ask a rotamer job to stop", parents=[common])
     p.set_defaults(func=cmd_admin_rotamer_cancel)
     p.add_argument("job_id", type=int)

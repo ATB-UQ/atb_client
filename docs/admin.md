@@ -26,6 +26,7 @@ open to every `read` key through `client.rotamer_jobs` and `client.compounds`.
 job = atb.admin.rotamer_jobs.create(compound_id=7, submission_budget=20, dry_run=True)
 job = atb.rotamer_jobs.wait(job.id, until="complete")     # raises RotamerJobFailed
 atb.admin.rotamer_jobs.create(compound_id=7, force=True)  # another job for a finished one
+atb.admin.rotamer_jobs.create(compound_id=7, if_exists="return")  # the existing job, if any
 atb.admin.rotamer_jobs.create(compound_id=7, window_kj=30, select_window_kj=10)  # select from the lowest 10 kJ/mol only
 atb.admin.rotamer_jobs.cancel(job.id)                     # 202; the state follows shortly
 ```
@@ -33,6 +34,8 @@ atb.admin.rotamer_jobs.cancel(job.id)                     # 202; the state follo
 Give exactly one of `molid` and `compound_id` (otherwise `ValidationError`, slug
 `target-required`). A compound has one live job: a second request raises `RotamerJobExists`
 (`.job_id`, `.state`), and so does one for a compound with a finished job unless `force=True`.
+`if_exists="return"` returns that existing job instead of raising; its options are the ones it
+was created with, which may differ from the ones just sent.
 `public=True` on a private molecule is refused (`private-parent`); a compound with nothing to
 search is `no-searchable-molecule`. Cancelling a finished job is a `Conflict`
 (`rotamer-job-finished`).

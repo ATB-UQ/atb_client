@@ -12,7 +12,7 @@ from typing import Any, Dict, Iterable, Optional, Union
 from .. import _ops
 from .._base import Resource, operation
 from .._transport import request
-from ..exceptions import RotamerJobNotFound
+from ..exceptions import RotamerJobExists, RotamerJobNotFound
 from ..models import (
     AdminUser,
     AdminUserDetail,
@@ -304,6 +304,7 @@ class AdminRotamerJobs(Resource):
         public: Optional[bool] = None,
         dry_run: bool = False,
         force: bool = False,
+        if_exists: str = "raise",
     ):
         """``POST /admin/rotamer-jobs`` -> the queued :class:`RotamerJob` (``201``).
         Needs a key carrying the ``admin`` scope: the search and the submission of its
@@ -319,8 +320,12 @@ class AdminRotamerJobs(Resource):
         and checks each selection against the ATB but submits nothing.
 
         One live job per compound: :class:`RotamerJobExists` (``.job_id``, ``.state``)
-        names it, and also a finished one unless ``force=True``. Neither argument or both
-        raises :class:`ValidationError` (``target-required``)."""
+        names it, and also a finished one unless ``force=True``. ``if_exists="return"``
+        returns that existing :class:`RotamerJob` instead (fetched with
+        ``client.rotamer_jobs.get``; its parameters may differ from the ones sent). Neither
+        argument or both raises :class:`ValidationError` (``target-required``)."""
+        if if_exists not in ("raise", "return"):
+            raise ValueError("if_exists must be 'raise' or 'return'")
         body: Dict[str, Any] = {
             "submission_budget": submission_budget,
             "seed_budget": seed_budget,
@@ -336,7 +341,17 @@ class AdminRotamerJobs(Resource):
                 public=public,
             ),
         }
-        response = yield from request(self._client, "POST", "admin/rotamer-jobs", json=body)
+        try:
+            response = yield from request(self._client, "POST", "admin/rotamer-jobs", json=body)
+        except RotamerJobExists as exists:
+            if if_exists == "raise" or exists.job_id is None:
+                raise
+            response = yield from request(
+                self._client,
+                "GET",
+                f"rotamer-jobs/{int(exists.job_id)}",
+                not_found=RotamerJobNotFound,
+            )
         return _ops.bind(RotamerJob.model_validate(response.json()), self._client)
 
     @operation
