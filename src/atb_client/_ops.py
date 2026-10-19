@@ -369,6 +369,33 @@ def page_of(
     return page
 
 
+def offset_page_of(
+    client: Any,
+    page_cls: Type[Any],
+    path: str,
+    params: Dict[str, Any],
+    *,
+    not_found: Type[NotFound] = NotFound,
+) -> Op:
+    """Fetch one page of an ``offset``/``limit`` list as ``page_cls`` (an ``_OffsetPage``,
+    which turns the next offset into ``next_cursor``) and wire ``.all()`` to fetch the
+    page at that offset."""
+    response = yield from request(client, "GET", path, params=params, not_found=not_found)
+    page = page_cls.model_validate(response.json())
+    for item in page.items:
+        bind(item, client)
+    bind(page, client)
+
+    def fetch(cursor: str) -> Op:
+        """Fetch the page starting at offset `cursor`."""
+        return offset_page_of(
+            client, page_cls, path, {**params, "offset": int(cursor)}, not_found=not_found
+        )
+
+    page._fetch = fetch
+    return page
+
+
 def items_of(body: Any) -> Tuple[Any, ...]:
     """Normalize a response body — a page dict, a bare list, or a single item — to a tuple."""
     if isinstance(body, dict) and "items" in body:

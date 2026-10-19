@@ -42,6 +42,7 @@ from .exceptions import (
     MoleculeRejected,
     RateLimited,
     RemapRefused,
+    RotamerJobFailed,
     Timeout,
 )
 from .resources.me import days_of
@@ -181,6 +182,7 @@ def cmd_submit(atb: ATBClient, args: argparse.Namespace) -> int:
             max_qm_level=args.max_qm_level,
             moltype=args.moltype,
             timeout=args.timeout,
+            idempotency_key=args.idempotency_key,
         )
     except DuplicateMolecule as dup:
         duplicate = True
@@ -379,6 +381,70 @@ def cmd_admin_audit(atb: ATBClient, args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+def cmd_admin_rotamer_create(atb: ATBClient, args: argparse.Namespace) -> int:
+    """``atb admin rotamer-jobs create``: queue a rotamer search of a molecule or compound."""
+    if (args.molid is None) == (args.compound_id is None):
+        raise UsageError("give exactly one of --molid and --compound-id")
+    job = atb.admin.rotamer_jobs.create(
+        molid=args.molid,
+        compound_id=args.compound_id,
+        submission_budget=args.submission_budget,
+        seed_budget=args.seed_budget,
+        seed_source=args.seed_source,
+        window_kj=args.window_kj,
+        max_qm_level=args.max_qm_level,
+        public=args.public,
+        dry_run=args.dry_run,
+        force=args.force,
+    )
+    _emit(args, job)
+    return EXIT_OK
+
+
+def cmd_admin_rotamer_cancel(atb: ATBClient, args: argparse.Namespace) -> int:
+    """``atb admin rotamer-jobs cancel ID``: ask a rotamer job to stop."""
+    _emit(args, atb.admin.rotamer_jobs.cancel(args.job_id))
+    return EXIT_OK
+
+
+def cmd_rotamer_list(atb: ATBClient, args: argparse.Namespace) -> int:
+    """``atb rotamer-jobs list``: rotamer jobs, newest first."""
+    page = atb.rotamer_jobs.list(
+        molid=args.molid,
+        compound_id=args.compound_id,
+        state=args.state,
+        limit=args.limit,
+        offset=args.offset,
+    )
+    _emit(args, list(page.all()) if args.all else page)
+    return EXIT_OK
+
+
+def cmd_rotamer_get(atb: ATBClient, args: argparse.Namespace) -> int:
+    """``atb rotamer-jobs get ID``: one rotamer job; ``--wait`` polls until it has
+    reached ``submitted`` or ``complete`` (exit 4 on timeout, 5 if it failed)."""
+    if args.wait:
+        job = atb.rotamer_jobs.wait(args.job_id, until=args.wait, timeout=args.wait_timeout)
+    else:
+        job = atb.rotamer_jobs.get(args.job_id)
+    _emit(args, job)
+    return EXIT_FAILED if job.state in ("failed", "cancelled") else EXIT_OK
+
+
+def cmd_compound_conformers(atb: ATBClient, args: argparse.Namespace) -> int:
+    """``atb compounds conformers ID``: a compound's conformers, lowest energy first."""
+    page = atb.compounds.conformers(
+        args.compound_id,
+        max_relative_energy=args.max_relative_energy,
+        qm_type=args.qm_type,
+        include_unscored=not args.scored_only,
+        limit=args.limit,
+        offset=args.offset,
+    )
+    _emit(args, list(page.all()) if args.all else page)
+    return EXIT_OK
+
+
 # --------------------------------------------------------------------------- parser
 
 
@@ -453,6 +519,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="block until the molecule is done (interactive use; not the HPC idiom)",
     )
     p.add_argument("--wait-timeout", type=float, default=None)
+    p.add_argument(
+        "--idempotency-key",
+        help="Idempotency-Key header: a retry with the same key and structure submits nothing "
+        "again",
+    )
 
     p = add("submit-batch", cmd_submit_batch, "submit up to 100 structures from an SDF")
     p.add_argument("file", help="SDF file, or - for stdin")
@@ -528,11 +599,83 @@ def build_parser() -> argparse.ArgumentParser:
 
     add("usage", cmd_usage, "today's counters and limits")
 
+    rotamer = sub.add_parser("rotamer-jobs", help="rotamer search jobs", parents=[common])
+    rotamer_sub = rotamer.add_subparsers(
+        dest="rotamer_command", metavar="ACTION", parser_class=_Parser
+    )
+    rotamer_sub.required = True
+    p = rotamer_sub.add_parser("list", help="list rotamer jobs, newest first", parents=[common])
+    p.set_defaults(func=cmd_rotamer_list)
+    p.add_argument("--molid", type=int, help="jobs that searched this molecule or its compound")
+    p.add_argument("--compound-id", type=int, dest="compound_id")
+    p.add_argument("--state", help="e.g. searching, submitted, complete, failed")
+    p.add_argument("--limit", type=int)
+    p.add_argument("--offset", type=int)
+    p.add_argument("--all", action="store_true", help="walk every page")
+    p = rotamer_sub.add_parser("get", help="one rotamer job in full", parents=[common])
+    p.set_defaults(func=cmd_rotamer_get)
+    p.add_argument("job_id", type=int)
+    p.add_argument(
+        "--wait",
+        choices=["submitted", "complete"],
+        help="poll until the job has reached this state (exit 5 if it failed or was cancelled)",
+    )
+    p.add_argument("--wait-timeout", type=float, default=None, dest="wait_timeout")
+
+    compounds = sub.add_parser("compounds", help="compound-level reads", parents=[common])
+    compounds_sub = compounds.add_subparsers(
+        dest="compounds_command", metavar="ACTION", parser_class=_Parser
+    )
+    compounds_sub.required = True
+    p = compounds_sub.add_parser(
+        "conformers", help="a compound's molecules by relative energy", parents=[common]
+    )
+    p.set_defaults(func=cmd_compound_conformers)
+    p.add_argument("compound_id", type=int)
+    p.add_argument("--max-relative-energy", type=float, dest="max_relative_energy", metavar="KJ")
+    p.add_argument(
+        "--qm-type",
+        dest="qm_type",
+        choices=["wB97X_631Gd_SMD_water", "wB97X_321G_SMD_water", "b3lyp_631Gd_PCM_water"],
+    )
+    p.add_argument(
+        "--scored-only",
+        action="store_true",
+        dest="scored_only",
+        help="leave out molecules with no energy yet",
+    )
+    p.add_argument("--limit", type=int)
+    p.add_argument("--offset", type=int)
+    p.add_argument("--all", action="store_true", help="walk every page")
+
     admin = sub.add_parser(
         "admin", help="admin operations (needs a key holding the admin scope)", parents=[common]
     )
     admin_sub = admin.add_subparsers(dest="admin_command", metavar="ACTION", parser_class=_Parser)
     admin_sub.required = True
+
+    arj = admin_sub.add_parser(
+        "rotamer-jobs", help="request or cancel a rotamer search", parents=[common]
+    )
+    arj_sub = arj.add_subparsers(dest="rotamer_command", metavar="ACTION", parser_class=_Parser)
+    arj_sub.required = True
+    p = arj_sub.add_parser("create", help="queue a rotamer search", parents=[common])
+    p.set_defaults(func=cmd_admin_rotamer_create)
+    p.add_argument("--molid", type=int)
+    p.add_argument("--compound-id", type=int, dest="compound_id")
+    p.add_argument("--submission-budget", type=int, default=20, dest="submission_budget")
+    p.add_argument("--seed-budget", type=int, default=500, dest="seed_budget")
+    p.add_argument("--seed-source", choices=["rotor", "etkdg", "union"], default="rotor")
+    p.add_argument("--window-kj", type=float, default=25.0, dest="window_kj")
+    p.add_argument("--max-qm-level", type=int, dest="max_qm_level")
+    vis = p.add_mutually_exclusive_group()
+    vis.add_argument("--public", dest="public", action="store_true", default=None)
+    vis.add_argument("--private", dest="public", action="store_false")
+    p.add_argument("--dry-run", action="store_true", dest="dry_run", help="submit nothing")
+    p.add_argument("--force", action="store_true", help="allow another job for a finished one")
+    p = arj_sub.add_parser("cancel", help="ask a rotamer job to stop", parents=[common])
+    p.set_defaults(func=cmd_admin_rotamer_cancel)
+    p.add_argument("job_id", type=int)
 
     p = admin_sub.add_parser("users", help="list accounts", parents=[common])
     p.set_defaults(func=cmd_admin_users)
@@ -603,7 +746,14 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         _emit_error("rate-limited", str(exc), retry_after=exc.retry_after, problem=exc.problem)
         return EXIT_RATE_LIMITED
     except Timeout as exc:
-        _emit_error("timeout", str(exc), job=exc.job, status=exc.status, pending=exc.pending)
+        _emit_error(
+            "timeout",
+            str(exc),
+            job=exc.job,
+            status=exc.status,
+            pending=exc.pending,
+            rotamer_job=exc.rotamer_job,
+        )
         return EXIT_RUNNING
     except (MoleculeFailed, MoleculeRejected) as exc:
         _emit_error(
@@ -615,6 +765,9 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         return EXIT_FAILED
     except JobFailed as exc:
         _emit_error("job-failed", str(exc), job=exc.job)
+        return EXIT_FAILED
+    except RotamerJobFailed as exc:
+        _emit_error("rotamer-job-failed", str(exc), job=exc.job)
         return EXIT_FAILED
     except RemapRefused as exc:
         _emit_error("remap-refused", str(exc), problem=exc.problem, report=exc.report)

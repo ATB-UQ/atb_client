@@ -41,7 +41,7 @@ from typing import (
     TypeVar,
 )
 
-from pydantic import BaseModel, ConfigDict, Field, PrivateAttr
+from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, model_validator
 
 from ._base import operation, stream_operation
 
@@ -54,6 +54,7 @@ __all__ = [
     "AdminUsageRow",
     "AdminUser",
     "AdminUserDetail",
+    "Advice",
     "ApiKey",
     "ArchetypeDetail",
     "ArchetypePage",
@@ -65,8 +66,11 @@ __all__ = [
     "BundleResult",
     "CacheCleared",
     "Change",
+    "CompoundConformer",
+    "CompoundConformers",
     "Conformation",
     "Conformations",
+    "ConformerDriver",
     "CurationResult",
     "DeletionRequestItem",
     "DeletionRequestPage",
@@ -101,8 +105,18 @@ __all__ = [
     "RMSDInput",
     "RMSDResult",
     "RemapResult",
+    "RotamerAdvice",
+    "RotamerConformer",
+    "RotamerCoverage",
+    "RotamerJob",
+    "RotamerJobPage",
+    "RotamerJobSummary",
+    "RotamerProgress",
+    "RotamerSearch",
+    "RotamerSettlement",
     "ScanCancelled",
     "ScanQueued",
+    "SettledMolecule",
     "Solvation",
     "SolvationResult",
     "StalledItem",
@@ -128,6 +142,20 @@ STAGES = ("queued", "qm0", "qm1", "qm2", "finished", "capped", "failed", "reject
 TERMINAL_STAGES = ("finished", "capped", "failed", "rejected")
 SUCCESS_STAGES = ("finished", "capped")
 JOB_STATES = ("queued", "running", "done", "failed")
+#: A rotamer job's states in the order it passes through them; ``failed`` and ``cancelled``
+#: end it without reaching the rest. ``submitted`` = every selected minimum is in the ATB
+#: (QM pending); ``complete`` = the covered molecules have settled.
+ROTAMER_STATES = (
+    "queued",
+    "preparing",
+    "searching",
+    "selecting",
+    "submitting",
+    "submitted",
+    "complete",
+)
+ROTAMER_FAILED_STATES = ("failed", "cancelled")
+ROTAMER_TERMINAL_STATES = ("complete", "failed", "cancelled")
 
 
 class _Model(BaseModel):
@@ -615,6 +643,204 @@ class Conformations(_Model):
     compound_id: Optional[int] = None
     qm_type: Optional[str] = None
     items: List[Conformation] = []
+
+
+# --------------------------------------------------------------------------- rotamer jobs
+
+
+class _OffsetPage(Page[T]):
+    """A page of an ``offset``/``limit`` list. The server sends no cursor; ``next_cursor``
+    is filled in here as the next offset, so ``page.all()`` walks the whole list."""
+
+    limit: Optional[int] = None
+    offset: int = 0
+
+    @model_validator(mode="after")
+    def _next_offset(self) -> _OffsetPage[T]:
+        """Set ``next_cursor`` to the offset after this page while ``total`` says there is more."""
+        end = self.offset + len(self.items)
+        if self.next_cursor is None and self.items and self.total is not None and end < self.total:
+            self.next_cursor = str(end)
+        return self
+
+
+class RotamerCoverage(_Model):
+    """What a rotamer job's selection came to so far."""
+
+    selected: int = 0
+    covered: int = 0
+    submitted: int = 0
+    existing: int = 0
+    failed: int = 0
+    reconcile: int = 0
+    unresolved: int = 0
+
+
+class RotamerProgress(_Model):
+    """Whether a rotamer job's covered molecules are settled (read live)."""
+
+    settled: int = 0
+    pending: int = 0
+    all_settled: bool = False
+
+
+class RotamerSearch(_Model):
+    """What the conformer search did (written by the rotamer driver; new keys pass through)."""
+
+    stopped: Optional[str] = None
+    n_minima: Optional[int] = None
+    n_eligible: Optional[int] = None
+    seeds: Optional[Dict[str, Any]] = None
+    since_new: Optional[int] = None
+    seeds_ran_out: Optional[bool] = None
+    plan_exhaustive: Optional[bool] = None
+    seed_source: Optional[str] = None
+
+
+class Advice(_Model):
+    """One verdict on whether a larger budget would help (``likely``, ``possible``,
+    ``unlikely``, ``insufficient_evidence``)."""
+
+    verdict: Optional[str] = None
+    reasons: List[str] = []
+    metrics: Dict[str, Any] = {}
+
+
+class RotamerAdvice(_Model):
+    """Would a larger seed or submission budget help; frozen when the job completes."""
+
+    version: Optional[int] = None
+    evaluated_at: Optional[str] = None
+    seed_budget: Optional[Advice] = None
+    submission_budget: Optional[Advice] = None
+
+
+class SettledMolecule(_Model):
+    """One covered molecule as settled (``terminal``, ``stall_timeout`` or ``missing``)."""
+
+    molid: Optional[int] = None
+    settled_reason: Optional[str] = None
+    hidden: bool = False
+
+
+class RotamerSettlement(_Model):
+    """The snapshot written when a job reaches ``complete``."""
+
+    reason: Optional[str] = None
+    settled_at: Optional[str] = None
+    molecules: List[SettledMolecule] = []
+
+
+class ConformerDriver(_Model):
+    """The rotamer driver's bookkeeping for one conformer; administrators only."""
+
+    idempotency_key: Optional[str] = None
+    api_job_id: Optional[str] = None
+    attempts: int = 0
+    provenance_recorded: bool = False
+    claimed_at: Optional[datetime] = None
+    resolved_at: Optional[datetime] = None
+
+
+class RotamerConformer(_Model):
+    """One in-window minimum of a rotamer job and what became of it. ``outcome`` is
+    ``not_selected``, ``skipped``, ``selected``, ``claimed``, ``submitted``, ``existing``,
+    ``failed``, ``reconcile`` or ``dry_run``; ``hidden`` withholds ``molid``, ``stage``
+    and the energies. Energies are kJ/mol."""
+
+    minimum_id: str
+    rank: int
+    e_search_kj: float
+    degeneracy: int = 1
+    population: Optional[float] = None
+    eligible: bool = False
+    selected: bool = False
+    outcome: str = ""
+    reason: Optional[str] = None
+    molid: Optional[int] = None
+    hidden: bool = False
+    stage: Optional[str] = None
+    terminal: Optional[bool] = None
+    settled_for_job: Optional[bool] = None
+    merged_into: Optional[int] = None
+    dft_energy_kj: Optional[float] = None
+    dft_relative_kj: Optional[float] = None
+    driver: Optional[ConformerDriver] = None
+
+
+class RotamerJobSummary(_Model):
+    """A row of ``GET /rotamer-jobs``. ``state`` is one of :data:`ROTAMER_STATES` or
+    ``failed``/``cancelled`` (a plain string: a state the server adds must still parse)."""
+
+    id: int
+    state: str
+    cancel_requested: bool = False
+    molid: int
+    compound_id: int
+    requested_as: Optional[str] = None  # molid | compound_id
+    submission_budget: Optional[int] = None
+    seed_budget: Optional[int] = None
+    dry_run: bool = False
+    created_at: Optional[datetime] = None
+    finished_at: Optional[datetime] = None
+    settlement_reason: Optional[str] = None
+    coverage: Optional[RotamerCoverage] = None
+    links: Optional[Dict[str, str]] = None
+
+    @property
+    def is_terminal(self) -> bool:
+        """True once the job is ``complete``, ``failed`` or ``cancelled``."""
+        return self.state in ROTAMER_TERMINAL_STATES
+
+    def reached(self, state: str) -> bool:
+        """True once the job is at ``state`` or any later one in :data:`ROTAMER_STATES`
+        (``failed``/``cancelled`` have reached none)."""
+        if self.state not in ROTAMER_STATES or state not in ROTAMER_STATES:
+            return False
+        return ROTAMER_STATES.index(self.state) >= ROTAMER_STATES.index(state)
+
+
+class RotamerJob(RotamerJobSummary):
+    """``GET /rotamer-jobs/{id}`` (and the answer of the admin create/cancel): the
+    search, every in-window minimum, coverage, progress, settlement and advice."""
+
+    cancel_requested_at: Optional[datetime] = None
+    options: Dict[str, Any] = {}
+    started_at: Optional[datetime] = None
+    searched_at: Optional[datetime] = None
+    submitted_at: Optional[datetime] = None
+    requester: Optional[str] = None  # administrators only
+    error: Optional[str] = None  # administrators only
+    search: Optional[RotamerSearch] = None
+    conformers: List[RotamerConformer] = []
+    progress: Optional[RotamerProgress] = None
+    settlement: Optional[RotamerSettlement] = None
+    advice: Optional[RotamerAdvice] = None
+
+
+class RotamerJobPage(_OffsetPage[RotamerJobSummary]):
+    """``GET /rotamer-jobs``: newest first. ``total > 0`` with ``molid=`` or
+    ``compound_id=`` means that molecule or compound has had a rotamer job."""
+
+
+class CompoundConformer(_Model):
+    """One molecule of a compound with its energy (kJ/mol) of the page's ``qm_type``."""
+
+    molid: int
+    energy: Optional[float] = None
+    relative_energy: Optional[float] = None
+    qm_level: Optional[int] = None
+    rotamer_job_id: Optional[int] = None
+
+
+class CompoundConformers(_OffsetPage[CompoundConformer]):
+    """``GET /compounds/{id}/conformers``: scored molecules by relative energy, then the
+    unscored ones. Iterating yields :class:`CompoundConformer`; ``.all()`` walks the pages."""
+
+    compound_id: int
+    qm_type: Optional[str] = None
+    energy_unit: str = "kJ/mol"
+    e_min: Optional[float] = None
 
 
 # --------------------------------------------------------------------------- reference data

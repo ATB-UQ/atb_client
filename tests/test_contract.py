@@ -225,9 +225,29 @@ IMPLEMENTED: Dict[str, Tuple[Call, str]] = {
     ),
     "molecules.tautomers": (lambda c: c.molecules.tautomers(21), "molecules_tautomers"),
     "molecules.conformations": (
-        lambda c: c.molecules.conformations(21),
+        lambda c: c.molecules.conformations(
+            21, max_relative_energy=10.0, qm_type="wB97X_631Gd_SMD_water", include_unscored=False
+        ),
         "molecules_conformations",
     ),
+    "compounds.conformers": (
+        lambda c: c.compounds.conformers(
+            7,
+            max_relative_energy=10.0,
+            qm_type="wB97X_631Gd_SMD_water",
+            include_unscored=False,
+            limit=5,
+            offset=5,
+        ),
+        "compounds_conformers",
+    ),
+    "rotamer_jobs.list": (
+        lambda c: c.rotamer_jobs.list(
+            molid=21, compound_id=7, state="complete", limit=5, offset=5
+        ),
+        "rotamer_jobs_list",
+    ),
+    "rotamer_jobs.get": (lambda c: c.rotamer_jobs.get(3), "rotamer_jobs_get"),
     "files.list": (lambda c: c.files.list(21, hash="abc12", ff="54A7"), "molecules_files_list"),
     "files.download": (
         lambda c: c.files.download(21, "itp_aa", hash="abc12", ff="54A7"),
@@ -374,6 +394,25 @@ IMPLEMENTED: Dict[str, Tuple[Call, str]] = {
         lambda c: c.admin.molecules.stalled(scan=100, cursor="k"),
         "admin_molecules_stalled",
     ),
+    "admin.rotamer_jobs.create": (
+        lambda c: c.admin.rotamer_jobs.create(
+            molid=21,
+            compound_id=None,
+            submission_budget=10,
+            seed_budget=100,
+            seed_source="union",
+            window_kj=20.0,
+            max_qm_level=1,
+            public=False,
+            dry_run=True,
+            force=True,
+        ),
+        "admin_rotamer_jobs_create",
+    ),
+    "admin.rotamer_jobs.cancel": (
+        lambda c: c.admin.rotamer_jobs.cancel(3),
+        "admin_rotamer_jobs_cancel",
+    ),
     "admin.quota_requests": (
         lambda c: c.admin.quota_requests(status="all", limit=5, cursor="k"),
         "admin_quota_requests_list",
@@ -495,7 +534,7 @@ UNBUILT: Dict[str, Tuple[Call, str]] = {}
 EXPECTED_MISSING: Set[str] = set()
 
 #: Public client methods that are not one route: they compose the ones above.
-COMPOSITE = {"molecules.wait_all"}
+COMPOSITE = {"molecules.wait_all", "rotamer_jobs.wait"}
 
 
 # --------------------------------------------------------------------------- tests
@@ -650,6 +689,20 @@ MODEL_MAP: Dict[str, type] = {
     # tautomer group's members carry the same fields (compound_id required rather
     # than optional; otherwise identical). One client model serves both.
     "TautomerGroupMember": models.TautomerMember,
+    "Advice": models.Advice,
+    "CompoundConformer": models.CompoundConformer,
+    "CompoundConformers": models.CompoundConformers,
+    "ConformerDriver": models.ConformerDriver,
+    "RotamerAdvice": models.RotamerAdvice,
+    "RotamerConformer": models.RotamerConformer,
+    "RotamerCoverage": models.RotamerCoverage,
+    "RotamerJob": models.RotamerJob,
+    "RotamerJobPage": models.RotamerJobPage,
+    "RotamerJobSummary": models.RotamerJobSummary,
+    "RotamerProgress": models.RotamerProgress,
+    "RotamerSearch": models.RotamerSearch,
+    "RotamerSettlement": models.RotamerSettlement,
+    "SettledMolecule": models.SettledMolecule,
     "Job": models.Job,
     "JobPage": models.Page,
     "BatchItem": models.BatchItem,
@@ -740,6 +793,9 @@ NOT_RESPONSES = {
     "ValidationStored",
     "Notify",
     "Notified",
+    # Rotamer jobs: the request body is create()'s keyword arguments; links is a dict.
+    "RotamerJobRequest",
+    "RotamerJobLinks",
 }
 
 

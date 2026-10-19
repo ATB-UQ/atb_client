@@ -8,7 +8,7 @@ appear before or after the subcommand.
 |---|---|
 | `atb get MOLID` | print a molecule's metadata |
 | `atb status MOLID` | poll a molecule once; exit 0 done, 4 running, 5 failed |
-| `atb submit FILE --charge N [--public\|--private] [--ref REF] [--format FMT] [--max-qm-level N] [--moltype T] [--wait]` | submit a structure; a duplicate adopts the existing entry |
+| `atb submit FILE --charge N [--public\|--private] [--ref REF] [--format FMT] [--max-qm-level N] [--moltype T] [--wait] [--idempotency-key K]` | submit a structure; a duplicate adopts the existing entry |
 | `atb submit-batch FILE [--charge-field F] [--ref-field F] [--charge N] [--public\|--private]` | submit up to 100 structures from an SDF |
 | `atb download MOLID NAMES... [-o DIR] [--hash H] [--ff FF]` | download named files of one molecule |
 | `atb remap MOLID FILE [--format FMT] [--mode MODE] [--names query\|reference] [--coords query\|reference] [--outputs ...] [--united] [-o PATH]` | this molecule's outputs in your structure's atom order |
@@ -22,6 +22,11 @@ appear before or after the subcommand.
 | `atb admin users [Q] [--limit N] [--all]` | list accounts (needs `admin` scope) |
 | `atb admin molecule MOLID [--max-qm-level N] [--curation-trust N] [--tag-add T] [--tag-remove T]` | curate one molecule |
 | `atb admin stalled [--scan N] [--all]` | molecules no QM driver will pick up |
+| `atb admin rotamer-jobs create (--molid N \| --compound-id N) [--submission-budget N] [--seed-budget N] [--seed-source rotor\|etkdg\|union] [--window-kj X] [--max-qm-level N] [--public\|--private] [--dry-run] [--force]` | queue a rotamer search (needs `admin` scope) |
+| `atb admin rotamer-jobs cancel JOB_ID` | ask a rotamer job to stop (needs `admin` scope) |
+| `atb rotamer-jobs list [--molid N] [--compound-id N] [--state S] [--limit N] [--offset N] [--all]` | rotamer jobs, newest first |
+| `atb rotamer-jobs get JOB_ID [--wait submitted\|complete] [--wait-timeout S]` | one rotamer job in full; with `--wait`, exit 4 on timeout and 5 if it failed or was cancelled |
+| `atb compounds conformers COMPOUND_ID [--max-relative-energy KJ] [--qm-type T] [--scored-only] [--limit N] [--offset N] [--all]` | a compound's molecules by relative energy |
 | `atb admin audit [--key-id N] [--principal P] [--user-email E] [--target-type T] [--target-id I] [--outcome O] [--limit N] [--all]` | recent admin/service/root writes and denials |
 
 Run `atb --help` or `atb <command> --help` for the full flag list; the table above mirrors

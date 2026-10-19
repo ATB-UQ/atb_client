@@ -16,6 +16,10 @@ Each is attached to a client as e.g. `atb.molecules`, `atb.files`.
 
 ::: atb_client.resources.jobs.Jobs
 
+::: atb_client.resources.rotamer_jobs.RotamerJobs
+
+::: atb_client.resources.compounds.Compounds
+
 ::: atb_client.resources.me.Me
 
 ::: atb_client.resources.me.Keys
@@ -33,6 +37,8 @@ Each is attached to a client as e.g. `atb.molecules`, `atb.files`.
 ::: atb_client.resources.admin.AdminUsers
 
 ::: atb_client.resources.admin.AdminMolecules
+
+::: atb_client.resources.admin.AdminRotamerJobs
 
 ::: atb_client.resources.pipeline.Pipeline
 

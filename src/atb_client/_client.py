@@ -13,12 +13,14 @@ from ._transport import AsyncDriver, RetryPolicy, SyncDriver
 from ._version import __version__
 from .resources.admin import Admin
 from .resources.bundles import Bundles
+from .resources.compounds import Compounds
 from .resources.files import Files
 from .resources.forcefields import Forcefields
 from .resources.jobs import Jobs
 from .resources.me import Me
 from .resources.molecules import Molecules
 from .resources.pipeline import Pipeline
+from .resources.rotamer_jobs import RotamerJobs
 from .resources.reference import Dihedrals, Parameters, SiteStatistics, TautomerGroups
 from .resources.structures import Structures
 
@@ -86,6 +88,8 @@ class _ClientBase:
         self.structures = Structures(self)
         self.forcefields = Forcefields(self)
         self.jobs = Jobs(self)
+        self.rotamer_jobs = RotamerJobs(self)
+        self.compounds = Compounds(self)
         self.me = Me(self)
         self.parameters = Parameters(self)
         self.dihedrals = Dihedrals(self)

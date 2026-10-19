@@ -110,6 +110,8 @@ class Molecules(Resource):
         callback_url: Optional[str] = None,
         dry_run: bool = False,
         timeout: Optional[float] = DEFAULT_SUBMIT_TIMEOUT,
+        idempotency_key: Optional[str] = None,
+        wait: bool = True,
     ):
         """``POST /molecules`` → the new :class:`Molecule` (``201``, with ``Location``).
 
@@ -119,6 +121,15 @@ class Molecules(Resource):
         ``timeout`` seconds. With ``dry_run=True`` nothing is inserted and the server
         answers ``200`` with a :class:`SubmissionResult` (``.molid`` is ``None``)
         instead of a :class:`Molecule`.
+
+        ``idempotency_key`` (up to 128 printable characters, no spaces) is sent as the
+        ``Idempotency-Key`` header: a retry with the same key and body is answered from
+        the original request's job instead of submitting again, so a request whose
+        answer was lost can be repeated safely; the same key with another body raises
+        :class:`IdempotencyKeyReused`. With ``wait=False`` the call does not wait for a
+        slow submission: if the server answers ``202`` the pending :class:`Job` is
+        returned (poll ``client.jobs.get`` / ``client.jobs.wait``; a finished one's result
+        names the molid), otherwise the molecule as usual.
         """
         body: Dict[str, Any] = {
             "structure": structure,
@@ -136,13 +147,22 @@ class Molecules(Resource):
             if value is not None:
                 body[key] = value
         kind, value = yield from _ops.call_with_wait(
-            self._client, "POST", "molecules", deadline=_ops.Deadline(timeout), json=body
+            self._client,
+            "POST",
+            "molecules",
+            deadline=_ops.Deadline(timeout),
+            json=body,
+            headers={"Idempotency-Key": idempotency_key} if idempotency_key else None,
+            wait=None if wait else 0,
+            follow_job=wait,
         )
         if kind == "response":
             payload = value.json()
             if dry_run or payload.get("molid") is None:
                 return SubmissionResult.model_validate(payload)
             return _ops.bind(Molecule.model_validate(payload), self._client)
+        if not wait:
+            return value
         result = value.result_
         if dry_run or (isinstance(result, dict) and result.get("molid") is None):
             return SubmissionResult.model_validate(result)
@@ -400,6 +420,29 @@ class Molecules(Resource):
         return (yield from self._sub(Tautomers, molid, "tautomers"))
 
     @operation
-    def conformations(self, molid: int):
-        """``GET /molecules/{molid}/conformations`` → :class:`Conformations`."""
-        return (yield from self._sub(Conformations, molid, "conformations"))
+    def conformations(
+        self,
+        molid: int,
+        *,
+        max_relative_energy: Optional[float] = None,
+        qm_type: Optional[str] = None,
+        include_unscored: Optional[bool] = None,
+    ):
+        """``GET /molecules/{molid}/conformations`` → :class:`Conformations`: the
+        compound's visible molecules in molid order, molecules in error included.
+        Without arguments this is the plain list. ``max_relative_energy`` (kJ/mol from
+        the lowest scored one), ``qm_type`` (the energy reported) and
+        ``include_unscored`` (with a filter, keep molecules with no energy; server default
+        true) only filter; for a ranked, paged list use ``client.compounds.conformers``."""
+        return (
+            yield from self._sub(
+                Conformations,
+                molid,
+                "conformations",
+                {
+                    "max_relative_energy": max_relative_energy,
+                    "qm_type": qm_type,
+                    "include_unscored": include_unscored,
+                },
+            )
+        )

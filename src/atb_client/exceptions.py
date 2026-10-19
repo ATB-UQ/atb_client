@@ -21,7 +21,7 @@ import httpx
 from .models import Problem
 
 if TYPE_CHECKING:  # pragma: no cover
-    from .models import Job, MoleculeStatus
+    from .models import Job, MoleculeStatus, RotamerJob
 
 __all__ = [
     "APIError",
@@ -31,7 +31,9 @@ __all__ = [
     "ConfigurationError",
     "Conflict",
     "DuplicateMolecule",
+    "CompoundNotFound",
     "GenerationRequired",
+    "IdempotencyKeyReused",
     "JobFailed",
     "MoleculeFailed",
     "MoleculeMoved",
@@ -43,6 +45,9 @@ __all__ = [
     "PermissionDenied",
     "RateLimited",
     "RemapRefused",
+    "RotamerJobExists",
+    "RotamerJobFailed",
+    "RotamerJobNotFound",
     "ServerError",
     "ServiceUnavailable",
     "Timeout",
@@ -138,6 +143,26 @@ class MoleculeNotFound(NotFound):
         return (self.problem.model_extra or {}).get("molid")
 
 
+class CompoundNotFound(NotFound):
+    """404 ``compound-not-found`` — no such compound, or none of its molecules is visible
+    to this key."""
+
+    @property
+    def compound_id(self) -> Optional[int]:
+        """The compound id that was not found."""
+        return (self.problem.model_extra or {}).get("compound_id")
+
+
+class RotamerJobNotFound(NotFound):
+    """404 ``rotamer-job-not-found`` — no such rotamer job, or its molecule is not
+    visible to this key (the two are indistinguishable)."""
+
+    @property
+    def job_id(self) -> Optional[int]:
+        """The rotamer job id that was not found."""
+        return (self.problem.model_extra or {}).get("job_id")
+
+
 class MoleculeMoved(APIError):
     """301 ``molecule-moved`` on a request the client does not follow (anything but
     ``GET``/``HEAD``): the molecule was a duplicate merged into ``.canonical_molid``.
@@ -163,6 +188,21 @@ class MoleculeMoved(APIError):
 
 class Conflict(APIError):
     """409 — e.g. a topology generation lock is held elsewhere."""
+
+
+class RotamerJobExists(Conflict):
+    """409 ``rotamer-job-exists`` — the compound already has a live rotamer job, or a
+    finished one and ``force`` was not sent. ``.job_id`` and ``.state`` name it."""
+
+    @property
+    def job_id(self) -> Optional[int]:
+        """The existing rotamer job."""
+        return (self.problem.model_extra or {}).get("job_id")
+
+    @property
+    def state(self) -> Optional[str]:
+        """That job's state."""
+        return (self.problem.model_extra or {}).get("state")
 
 
 class GenerationRequired(Conflict):
@@ -219,6 +259,16 @@ class DuplicateMolecule(Conflict):
         """Await the fetch and cache its result."""
         self._molecule = await awaitable
         return self._molecule
+
+
+class IdempotencyKeyReused(ValidationError):
+    """422 ``idempotency-key-reused`` — the ``Idempotency-Key`` was used for a different
+    request body. ``.job_id`` is the job created under it. Use a new key for a new request."""
+
+    @property
+    def job_id(self) -> Optional[str]:
+        """The job the key was first used for."""
+        return (self.problem.model_extra or {}).get("job_id")
 
 
 class TopologyVersionGone(APIError):
@@ -313,11 +363,21 @@ class JobFailed(ATBError):
         super().__init__(f"job {job.id} ({job.kind}) failed: {job.error}")
 
 
+class RotamerJobFailed(ATBError):
+    """``RotamerJobs.wait()`` found the job ``failed`` or ``cancelled``. ``.job`` holds it."""
+
+    def __init__(self, job: RotamerJob) -> None:
+        self.job = job
+        detail = f": {job.error}" if getattr(job, "error", None) else ""
+        super().__init__(f"rotamer job {job.id} {job.state}{detail}")
+
+
 class Timeout(ATBError):
     """The caller's ``timeout`` elapsed before the operation finished.
 
     ``.job`` is set when a server job was still running, ``.status`` when a molecule
-    had not reached a terminal stage, ``.pending`` for ``wait_all``.
+    had not reached a terminal stage, ``.pending`` for ``wait_all``, ``.rotamer_job``
+    for ``rotamer_jobs.wait``.
     """
 
     def __init__(
@@ -327,7 +387,9 @@ class Timeout(ATBError):
         job: Optional[Job] = None,
         status: Optional[MoleculeStatus] = None,
         pending: Optional[List[int]] = None,
+        rotamer_job: Optional[RotamerJob] = None,
     ) -> None:
+        self.rotamer_job = rotamer_job
         self.job = job
         self.status = status
         self.pending = pending
@@ -437,6 +499,16 @@ _BY_SLUG: Dict[str, Type[APIError]] = {
     "scan-not-cancellable": Conflict,
     "group-not-found": NotFound,
     "quota-request-not-found": NotFound,
+    # Rotamer jobs and the conformers of a compound (ROTAMER_SUBMISSION.md section 5).
+    "target-required": ValidationError,
+    "no-searchable-molecule": ValidationError,
+    "private-parent": ValidationError,
+    "rotamer-job-exists": RotamerJobExists,
+    "rotamer-job-finished": Conflict,
+    "rotamer-job-not-found": RotamerJobNotFound,
+    "compound-not-found": CompoundNotFound,
+    "idempotency-key-reused": IdempotencyKeyReused,
+    "schema-missing": ServiceUnavailable,
 }
 
 _BY_STATUS: Dict[int, Type[APIError]] = {

@@ -170,6 +170,24 @@ class AdminUserUpdate(BaseModel):
     """
 
 
+class Advice(BaseModel):
+    model_config = ConfigDict(
+        extra='allow',
+    )
+    verdict: Annotated[Optional[str], Field(title='Verdict')] = None
+    """
+    `likely`, `possible`, `unlikely` or `insufficient_evidence` (`insufficient_dft_data` for the DFT part).
+    """
+    reasons: Annotated[Optional[List[str]], Field(title='Reasons')] = None
+    """
+    Why, in words.
+    """
+    metrics: Annotated[Optional[Dict[str, Any]], Field(title='Metrics')] = None
+    """
+    The numbers the verdict was drawn from.
+    """
+
+
 class ArchetypeDetail(BaseModel):
     """
     One fitted archetype, as the archetype page shows it, less the whole-library IFP
@@ -752,6 +770,70 @@ class Claimed(BaseModel):
     """
 
 
+class CompoundConformer(BaseModel):
+    model_config = ConfigDict(
+        extra='allow',
+    )
+    molid: Annotated[int, Field(title='Molid')]
+    """
+    The molecule.
+    """
+    energy: Annotated[Optional[float], Field(title='Energy')] = None
+    """
+    Its lowest energy of `qm_type`, kJ/mol; null if none yet.
+    """
+    relative_energy: Annotated[Optional[float], Field(title='Relative Energy')] = None
+    """
+    `energy - e_min`, kJ/mol; null if unscored.
+    """
+    qm_level: Annotated[Optional[int], Field(title='Qm Level')] = None
+    """
+    Its QM level so far.
+    """
+    rotamer_job_id: Annotated[Optional[int], Field(title='Rotamer Job Id')] = None
+    """
+    The lowest visible rotamer job that submitted it.
+    """
+
+
+class CompoundConformers(BaseModel):
+    model_config = ConfigDict(
+        extra='allow',
+    )
+    compound_id: Annotated[int, Field(title='Compound Id')]
+    """
+    The compound.
+    """
+    qm_type: Annotated[str, Field(title='Qm Type')]
+    """
+    The method the energies are from.
+    """
+    energy_unit: Annotated[Literal['kJ/mol'], Field(title='Energy Unit')] = 'kJ/mol'
+    """
+    Unit of every energy here.
+    """
+    e_min: Annotated[Optional[float], Field(title='E Min')] = None
+    """
+    The lowest energy among the visible molecules; null if none is scored.
+    """
+    total: Annotated[int, Field(title='Total')]
+    """
+    Molecules matching, over all pages.
+    """
+    limit: Annotated[int, Field(title='Limit')]
+    """
+    The page size used.
+    """
+    offset: Annotated[int, Field(title='Offset')]
+    """
+    The offset used.
+    """
+    items: Annotated[List[CompoundConformer], Field(title='Items')]
+    """
+    Scored molecules by relative energy then molid, then unscored ones by molid.
+    """
+
+
 class CompoundFields(BaseModel):
     """
     `compounds/set`'s field set. Without `overwrite` nothing is written unless every
@@ -936,6 +1018,38 @@ class Conformations(BaseModel):
     items: Annotated[List[Conformation], Field(title='Items')]
     """
     Every visible molecule of the compound.
+    """
+
+
+class ConformerDriver(BaseModel):
+    model_config = ConfigDict(
+        extra='allow',
+    )
+    idempotency_key: Annotated[Optional[str], Field(title='Idempotency Key')] = None
+    """
+    The Idempotency-Key the driver submits it under.
+    """
+    api_job_id: Annotated[Optional[str], Field(title='Api Job Id')] = None
+    """
+    The API job of its submission.
+    """
+    attempts: Annotated[Optional[int], Field(title='Attempts')] = 0
+    """
+    Submission attempts.
+    """
+    provenance_recorded: Annotated[
+        Optional[bool], Field(title='Provenance Recorded')
+    ] = False
+    """
+    Its `datasets` row is written.
+    """
+    claimed_at: Annotated[Optional[str], Field(title='Claimed At')] = None
+    """
+    When it was claimed for submission (UTC).
+    """
+    resolved_at: Annotated[Optional[str], Field(title='Resolved At')] = None
+    """
+    When its outcome was recorded (UTC).
     """
 
 
@@ -1893,6 +2007,10 @@ class MoleculeLinks(BaseModel):
     """
     Its solvation free energies.
     """
+    condensed_phase: Annotated[str, Field(title='Condensed Phase')]
+    """
+    Its neat-liquid properties, calculated and experimental.
+    """
     parameters: Annotated[str, Field(title='Parameters')]
     """
     Its bonded-parameter assignment.
@@ -2585,7 +2703,7 @@ class RMSDResult(BaseModel):
     """
     rmsd_matrix: Annotated[List[List[Optional[float]]], Field(title='Rmsd Matrix')]
     """
-    Pairwise RMSD in nm after optimal alignment; null where the two molecular graphs do not match (including a different tautomer).
+    Pairwise RMSD in angstrom over all atoms after optimal alignment, each atom paired with its image under the lowest-RMSD configuration-preserving symmetry; null where the two molecular graphs differ (element, connectivity, explicit hydrogens, stated formal charge -- so a different tautomer or protonation state). Heavy atoms only when a structure carries no hydrogens.
     """
     rmsd: Annotated[Optional[float], Field(title='Rmsd')] = None
     """
@@ -2649,6 +2767,358 @@ class RemapRequest(BaseModel):
     united: Annotated[Optional[bool], Field(title='United')] = False
     """
     United-atom outputs instead of all-atom.
+    """
+
+
+class RotamerAdvice(BaseModel):
+    model_config = ConfigDict(
+        extra='allow',
+    )
+    version: Annotated[Optional[int], Field(title='Version')] = None
+    """
+    Version of the advice rules.
+    """
+    evaluated_at: Annotated[Optional[str], Field(title='Evaluated At')] = None
+    """
+    When it was worked out (RFC 3339, UTC).
+    """
+    seed_budget: Optional[Advice] = None
+    """
+    Would a larger seed budget likely find more relevant minima?
+    """
+    submission_budget: Optional[Advice] = None
+    """
+    Would a larger submission budget likely add relevant conformers?
+    """
+
+
+class RotamerConformer(BaseModel):
+    model_config = ConfigDict(
+        extra='allow',
+    )
+    minimum_id: Annotated[str, Field(title='Minimum Id')]
+    """
+    The search's name for the minimum, e.g. `m3`.
+    """
+    rank: Annotated[int, Field(title='Rank')]
+    """
+    1 = the lowest eligible minimum.
+    """
+    e_search_kj: Annotated[float, Field(title='E Search Kj')]
+    """
+    GFN2-xTB (ALPB water) energy relative to the lowest eligible minimum, kJ/mol.
+    """
+    degeneracy: Annotated[int, Field(title='Degeneracy')]
+    """
+    Symmetry-equivalent copies of the minimum.
+    """
+    population: Annotated[Optional[float], Field(title='Population')] = None
+    """
+    Boltzmann population over the eligible minima at 298.15 K; null if not eligible.
+    """
+    eligible: Annotated[bool, Field(title='Eligible')]
+    """
+    Converged and the input C=N isomer.
+    """
+    selected: Annotated[bool, Field(title='Selected')]
+    """
+    Within the submission budget.
+    """
+    outcome: Annotated[str, Field(title='Outcome')]
+    """
+    `not_selected`, `skipped`, `selected` (not claimed yet), `claimed`, `submitted`, `existing`, `failed`, `reconcile` or `dry_run`.
+    """
+    reason: Annotated[Optional[str], Field(title='Reason')] = None
+    """
+    Why skipped or failed (a problem slug), or `unresolved`.
+    """
+    molid: Annotated[Optional[int], Field(title='Molid')] = None
+    """
+    The molecule submitted or matched; null if none or hidden.
+    """
+    hidden: Annotated[Optional[bool], Field(title='Hidden')] = False
+    """
+    The molecule is not visible to this key: its molid, stage and energy are withheld.
+    """
+    stage: Annotated[Optional[str], Field(title='Stage')] = None
+    """
+    Its live QM stage (`GET /molecules/{molid}/status`), of the molecule it was merged into if merged; `missing` if gone.
+    """
+    terminal: Annotated[Optional[bool], Field(title='Terminal')] = None
+    """
+    The stage is terminal.
+    """
+    settled_for_job: Annotated[Optional[bool], Field(title='Settled For Job')] = None
+    """
+    Covered and settled for the job (terminal, stalled more than 7 days, or gone).
+    """
+    merged_into: Annotated[Optional[int], Field(title='Merged Into')] = None
+    """
+    The molecule it was merged into, if merged.
+    """
+    dft_energy_kj: Annotated[Optional[float], Field(title='Dft Energy Kj')] = None
+    """
+    Its lowest wB97X/6-31G(d) SMD-water energy, kJ/mol.
+    """
+    dft_relative_kj: Annotated[Optional[float], Field(title='Dft Relative Kj')] = None
+    """
+    Relative to the lowest DFT energy shown in this job, kJ/mol.
+    """
+    driver: Optional[ConformerDriver] = None
+    """
+    The driver's bookkeeping; administrators only.
+    """
+
+
+class RotamerCoverage(BaseModel):
+    model_config = ConfigDict(
+        extra='allow',
+    )
+    selected: Annotated[int, Field(title='Selected')]
+    """
+    Minima selected for the ATB (at most the submission budget).
+    """
+    covered: Annotated[int, Field(title='Covered')]
+    """
+    Selected minima now in the ATB: `submitted` + `existing`.
+    """
+    submitted: Annotated[int, Field(title='Submitted')]
+    """
+    Submitted as new molecules.
+    """
+    existing: Annotated[int, Field(title='Existing')]
+    """
+    Already in the ATB (the duplicate check named the molecule).
+    """
+    failed: Annotated[int, Field(title='Failed')]
+    """
+    Refused on submission.
+    """
+    reconcile: Annotated[int, Field(title='Reconcile')]
+    """
+    Outcome unknown, waiting for an administrator.
+    """
+    unresolved: Annotated[int, Field(title='Unresolved')]
+    """
+    Selected but not resolved yet, plus dry-run comparisons that could not be decided.
+    """
+
+
+class RotamerJobLinks(BaseModel):
+    model_config = ConfigDict(
+        extra='allow',
+    )
+    self: Annotated[str, Field(title='Self')]
+    """
+    This job.
+    """
+
+
+class Molid(RootModel[int]):
+    root: Annotated[int, Field(ge=1, title='Molid')]
+    """
+    The molecule to search. Give this or `compound_id`.
+    """
+
+
+class CompoundId(RootModel[int]):
+    root: Annotated[int, Field(ge=1, title='Compound Id')]
+    """
+    The compound to search: its public, error-free molecule with the lowest wB97X/6-31G(d) SMD-water energy, else its lowest public finished molid. Give this or `molid`.
+    """
+
+
+class MaxQmLevel2(RootModel[int]):
+    root: Annotated[int, Field(ge=0, le=2, title='Max Qm Level')]
+    """
+    The QM ceiling of the submitted conformers. Default: the searched molecule's own `max_qm_level`.
+    """
+
+
+class RotamerJobRequest(BaseModel):
+    model_config = ConfigDict(
+        extra='allow',
+    )
+    molid: Annotated[Optional[Molid], Field(title='Molid')] = None
+    """
+    The molecule to search. Give this or `compound_id`.
+    """
+    compound_id: Annotated[Optional[CompoundId], Field(title='Compound Id')] = None
+    """
+    The compound to search: its public, error-free molecule with the lowest wB97X/6-31G(d) SMD-water energy, else its lowest public finished molid. Give this or `molid`.
+    """
+    submission_budget: Annotated[
+        Optional[int], Field(ge=1, le=200, title='Submission Budget')
+    ] = 20
+    """
+    How many of the lowest eligible minima to select for the ATB. Minima that already exist in the ATB count toward it.
+    """
+    seed_budget: Annotated[
+        Optional[int], Field(ge=16, le=20000, title='Seed Budget')
+    ] = 500
+    """
+    How many starting geometries the search may relax.
+    """
+    seed_source: Annotated[
+        Optional[Literal['rotor', 'etkdg', 'union']], Field(title='Seed Source')
+    ] = 'rotor'
+    """
+    Where seeds come from: `rotor` (torsion combinations), `etkdg` (RDKit embedding) or `union` (both).
+    """
+    window_kj: Annotated[
+        Optional[float], Field(ge=1.0, le=100.0, title='Window Kj')
+    ] = 25.0
+    """
+    Minima within this many kJ/mol (GFN2-xTB, ALPB water) of the lowest are kept.
+    """
+    max_qm_level: Annotated[Optional[MaxQmLevel2], Field(title='Max Qm Level')] = None
+    """
+    The QM ceiling of the submitted conformers. Default: the searched molecule's own `max_qm_level`.
+    """
+    public: Annotated[Optional[bool], Field(title='Public')] = None
+    """
+    Whether the submitted conformers are public. Default: the searched molecule's own visibility; `true` is refused for a private molecule (`422 private-parent`).
+    """
+    dry_run: Annotated[Optional[bool], Field(title='Dry Run')] = False
+    """
+    Search and select, check each selection with a structure search, and submit nothing.
+    """
+    force: Annotated[Optional[bool], Field(title='Force')] = False
+    """
+    Allow a new job for a compound that already has a finished one.
+    """
+
+
+class RotamerJobSummary(BaseModel):
+    model_config = ConfigDict(
+        extra='allow',
+    )
+    id: Annotated[int, Field(title='Id')]
+    """
+    The job id.
+    """
+    state: Annotated[
+        Literal[
+            'queued',
+            'preparing',
+            'searching',
+            'selecting',
+            'submitting',
+            'submitted',
+            'complete',
+            'failed',
+            'cancelled',
+        ],
+        Field(title='State'),
+    ]
+    """
+    `queued`, `preparing`, `searching`, `selecting`, `submitting`, `submitted` (all submitted, QM pending), `complete`, `failed` or `cancelled`.
+    """
+    cancel_requested: Annotated[bool, Field(title='Cancel Requested')]
+    """
+    A cancellation was asked for; the state changes once in-flight work is accounted for.
+    """
+    molid: Annotated[int, Field(title='Molid')]
+    """
+    The molecule searched.
+    """
+    compound_id: Annotated[int, Field(title='Compound Id')]
+    """
+    Its compound, at request time.
+    """
+    requested_as: Annotated[
+        Literal['molid', 'compound_id'], Field(title='Requested As')
+    ]
+    """
+    How the job was asked for.
+    """
+    submission_budget: Annotated[int, Field(title='Submission Budget')]
+    """
+    Minima to select for the ATB.
+    """
+    seed_budget: Annotated[int, Field(title='Seed Budget')]
+    """
+    Seeds the search may relax.
+    """
+    dry_run: Annotated[bool, Field(title='Dry Run')]
+    """
+    Nothing is submitted.
+    """
+    created_at: Annotated[Optional[str], Field(title='Created At')] = None
+    """
+    When it was requested (UTC).
+    """
+    finished_at: Annotated[Optional[str], Field(title='Finished At')] = None
+    """
+    When it completed, failed or was cancelled (UTC).
+    """
+    settlement_reason: Annotated[Optional[str], Field(title='Settlement Reason')] = None
+    """
+    How it settled, once complete.
+    """
+    coverage: RotamerCoverage
+    """
+    What the selection came to so far.
+    """
+    links: RotamerJobLinks
+    """
+    Related resources.
+    """
+
+
+class RotamerProgress(BaseModel):
+    model_config = ConfigDict(
+        extra='allow',
+    )
+    settled: Annotated[int, Field(title='Settled')]
+    """
+    Covered molecules (merges followed, duplicates dropped) settled for the job: terminal, stalled for more than 7 days, or gone.
+    """
+    pending: Annotated[int, Field(title='Pending')]
+    """
+    Covered molecules not settled yet.
+    """
+    all_settled: Annotated[bool, Field(title='All Settled')]
+    """
+    Every selected minimum is resolved and every covered molecule settled; false until submission has ended.
+    """
+
+
+class RotamerSearch(BaseModel):
+    model_config = ConfigDict(
+        extra='allow',
+    )
+    stopped: Annotated[Optional[str], Field(title='Stopped')] = None
+    """
+    Why the search stopped: `population`, `exhausted`, `budget`, `deadline`, ...
+    """
+    n_minima: Annotated[Optional[int], Field(title='N Minima')] = None
+    """
+    Minima found within the window.
+    """
+    n_eligible: Annotated[Optional[int], Field(title='N Eligible')] = None
+    """
+    Of those, the ones eligible for submission (converged, the input C=N isomer).
+    """
+    seeds: Annotated[Optional[Dict[str, Any]], Field(title='Seeds')] = None
+    """
+    Seed counts by kind (tried, relaxed, failed, ...).
+    """
+    since_new: Annotated[Optional[int], Field(title='Since New')] = None
+    """
+    Seeds relaxed since the last new minimum.
+    """
+    seeds_ran_out: Annotated[Optional[bool], Field(title='Seeds Ran Out')] = None
+    """
+    The listed seeds ended below the seed budget.
+    """
+    plan_exhaustive: Annotated[Optional[bool], Field(title='Plan Exhaustive')] = None
+    """
+    The seed plan enumerated every combination; null for a search recorded before this was kept.
+    """
+    seed_source: Annotated[Optional[str], Field(title='Seed Source')] = None
+    """
+    The seed source the search ran with.
     """
 
 
@@ -2782,6 +3252,24 @@ class SetChange(BaseModel):
     """
 
 
+class SettledMolecule(BaseModel):
+    model_config = ConfigDict(
+        extra='allow',
+    )
+    molid: Annotated[Optional[int], Field(title='Molid')] = None
+    """
+    The covered molecule (canonical); null when hidden from this key.
+    """
+    settled_reason: Annotated[Optional[str], Field(title='Settled Reason')] = None
+    """
+    `terminal`, `stall_timeout` or `missing`.
+    """
+    hidden: Annotated[Optional[bool], Field(title='Hidden')] = False
+    """
+    The molecule is not visible to this key.
+    """
+
+
 class SolvationResult(BaseModel):
     model_config = ConfigDict(
         extra='allow',
@@ -2898,15 +3386,15 @@ class StructureMatch(BaseModel):
     """
     rmsd: Annotated[Optional[float], Field(title='Rmsd')] = None
     """
-    Blind-RMSD in nm after optimal alignment; null when the search budget ran out before this candidate was aligned.
+    Heavy-atom RMSD in angstrom after an exact atom correspondence and least-squares superposition (helpers/structure_rmsd); null when the candidate was not compared: the search budget ran out, or no correspondence could be established.
     """
     is_identical: Annotated[bool, Field(title='Is Identical')]
     """
-    Close enough that submitting the structure would be a duplicate.
+    Close enough (at or below the duplicate threshold, ATB_WEBSITE_EQUALITY_RMSD_THRESHOLD) that submitting the structure would be a duplicate.
     """
     compared: Annotated[bool, Field(title='Compared')]
     """
-    False if the search ran out of time before aligning it.
+    False if the search ran out of time before aligning it, or the pair could not be compared.
     """
 
 
@@ -2946,7 +3434,7 @@ class StructureSearchResult(BaseModel):
     """
     matches: Annotated[List[StructureMatch], Field(title='Matches')]
     """
-    Closest first.
+    The public molecules of the uploaded compound (same InChI key and net charge), closest first.
     """
     total_matches: Annotated[int, Field(title='Total Matches')]
     """
@@ -2962,7 +3450,7 @@ class StructureSearchResult(BaseModel):
     """
 
 
-class MaxQmLevel2(RootModel[int]):
+class MaxQmLevel3(RootModel[int]):
     root: Annotated[int, Field(ge=0, le=2, title='Max Qm Level')]
     """
     Lower the QM ceiling below the size-derived default. Only admin and service keys may raise it.
@@ -3000,7 +3488,7 @@ class SubmissionRequest(BaseModel):
     """
     The kind of molecule, as on the submission form.
     """
-    max_qm_level: Annotated[Optional[MaxQmLevel2], Field(title='Max Qm Level')] = None
+    max_qm_level: Annotated[Optional[MaxQmLevel3], Field(title='Max Qm Level')] = None
     """
     Lower the QM ceiling below the size-derived default. Only admin and service keys may raise it.
     """
@@ -3732,7 +4220,7 @@ class Molecule(BaseModel):
     """
     tags: Annotated[Optional[List[str]], Field(title='Tags')] = []
     """
-    The compound's tags.
+    The compound's curated tags.
     """
     has_ti: Annotated[Optional[bool], Field(title='Has Ti')] = False
     """
@@ -3823,6 +4311,48 @@ class MotifPage(BaseModel):
     units: Annotated[Dict[str, str], Field(title='Units')]
     """
     The unit of each kind's value.
+    """
+
+
+class RotamerJobPage(BaseModel):
+    model_config = ConfigDict(
+        extra='allow',
+    )
+    items: Annotated[List[RotamerJobSummary], Field(title='Items')]
+    """
+    Jobs, newest first.
+    """
+    total: Annotated[int, Field(title='Total')]
+    """
+    Visible jobs matching the filters; > 0 means the molecule or compound has had a rotamer job.
+    """
+    limit: Annotated[int, Field(title='Limit')]
+    """
+    The page size used.
+    """
+    offset: Annotated[int, Field(title='Offset')]
+    """
+    The offset used.
+    """
+
+
+class RotamerSettlement(BaseModel):
+    model_config = ConfigDict(
+        extra='allow',
+    )
+    reason: Annotated[Optional[str], Field(title='Reason')] = None
+    """
+    `all_terminal`, `with_timeouts`, `no_eligible`, `all_failed` or `dry_run`.
+    """
+    settled_at: Annotated[Optional[str], Field(title='Settled At')] = None
+    """
+    When the job settled (RFC 3339, UTC).
+    """
+    molecules: Annotated[Optional[List[SettledMolecule]], Field(title='Molecules')] = (
+        None
+    )
+    """
+    Each covered molecule, as settled.
     """
 
 
@@ -3941,4 +4471,131 @@ class ValidationPut(BaseModel):
     row: Optional[ValidationRow] = None
     """
     The validation row, written last -- a row with a value and no files is unreachable (root CLAUDE.md, emin_vac).
+    """
+
+
+class RotamerJob(BaseModel):
+    model_config = ConfigDict(
+        extra='allow',
+    )
+    id: Annotated[int, Field(title='Id')]
+    """
+    The job id.
+    """
+    state: Annotated[
+        Literal[
+            'queued',
+            'preparing',
+            'searching',
+            'selecting',
+            'submitting',
+            'submitted',
+            'complete',
+            'failed',
+            'cancelled',
+        ],
+        Field(title='State'),
+    ]
+    """
+    `queued`, `preparing`, `searching`, `selecting`, `submitting`, `submitted` (all submitted, QM pending), `complete`, `failed` or `cancelled`.
+    """
+    cancel_requested: Annotated[bool, Field(title='Cancel Requested')]
+    """
+    A cancellation was asked for; the state changes once in-flight work is accounted for.
+    """
+    molid: Annotated[int, Field(title='Molid')]
+    """
+    The molecule searched.
+    """
+    compound_id: Annotated[int, Field(title='Compound Id')]
+    """
+    Its compound, at request time.
+    """
+    requested_as: Annotated[
+        Literal['molid', 'compound_id'], Field(title='Requested As')
+    ]
+    """
+    How the job was asked for.
+    """
+    submission_budget: Annotated[int, Field(title='Submission Budget')]
+    """
+    Minima to select for the ATB.
+    """
+    seed_budget: Annotated[int, Field(title='Seed Budget')]
+    """
+    Seeds the search may relax.
+    """
+    dry_run: Annotated[bool, Field(title='Dry Run')]
+    """
+    Nothing is submitted.
+    """
+    created_at: Annotated[Optional[str], Field(title='Created At')] = None
+    """
+    When it was requested (UTC).
+    """
+    finished_at: Annotated[Optional[str], Field(title='Finished At')] = None
+    """
+    When it completed, failed or was cancelled (UTC).
+    """
+    settlement_reason: Annotated[Optional[str], Field(title='Settlement Reason')] = None
+    """
+    How it settled, once complete.
+    """
+    coverage: RotamerCoverage
+    """
+    What the selection came to so far.
+    """
+    links: RotamerJobLinks
+    """
+    Related resources.
+    """
+    cancel_requested_at: Annotated[
+        Optional[str], Field(title='Cancel Requested At')
+    ] = None
+    """
+    When cancellation was asked for (UTC).
+    """
+    options: Annotated[Dict[str, Any], Field(title='Options')]
+    """
+    The resolved request: seed_source, window_kj, max_qm_level, public, dry_run and the pinned method, stop_rule, imine_isomers, deadline_s.
+    """
+    started_at: Annotated[Optional[str], Field(title='Started At')] = None
+    """
+    When preparation started (UTC).
+    """
+    searched_at: Annotated[Optional[str], Field(title='Searched At')] = None
+    """
+    When the search finished (UTC).
+    """
+    submitted_at: Annotated[Optional[str], Field(title='Submitted At')] = None
+    """
+    When every selected minimum was resolved (UTC).
+    """
+    requester: Annotated[Optional[str], Field(title='Requester')] = None
+    """
+    Who asked; administrators only.
+    """
+    error: Annotated[Optional[str], Field(title='Error')] = None
+    """
+    Why the pipeline failed; administrators only.
+    """
+    search: Optional[RotamerSearch] = None
+    """
+    What the search did; null until it is collected.
+    """
+    conformers: Annotated[List[RotamerConformer], Field(title='Conformers')]
+    """
+    Every in-window minimum, by rank.
+    """
+    progress: RotamerProgress
+    """
+    Whether the covered molecules are settled, read live.
+    """
+    settlement: Optional[RotamerSettlement] = None
+    """
+    The snapshot written at `complete`; null before.
+    """
+    advice: Optional[RotamerAdvice] = None
+    """
+    Would a larger budget help: the latest, frozen at `complete`.
     """

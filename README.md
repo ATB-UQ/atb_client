@@ -231,9 +231,39 @@ atb admin users acme.edu --all
 atb admin molecule 21 --max-qm-level 2
 atb admin stalled --all
 atb admin audit --target-type molecule --target-id 21
+atb admin rotamer-jobs create --compound-id 7 --submission-budget 20
+atb admin rotamer-jobs cancel 3
+
+# rotamer searches and conformers (any read key)
+atb rotamer-jobs list --compound-id 7
+atb rotamer-jobs get 3 --wait submitted
+atb compounds conformers 7 --max-relative-energy 25 --all
 ```
 
 Output is JSON on stdout (`--table` for humans); errors are JSON on stderr.
+
+### Rotamer searches and conformers
+
+A rotamer job searches a molecule's conformations (GFN2-xTB) and submits the lowest minima
+to the ATB. Any `read` key can follow one; requesting one is an admin call.
+
+```python
+page = atb.rotamer_jobs.list(compound_id=7)         # page.total > 0: it has had a job
+job = atb.rotamer_jobs.get(page.items[0].id)        # minima, their outcomes, coverage, advice
+job = atb.rotamer_jobs.wait(job.id, until="complete", timeout=24 * 3600)
+                                                    # RotamerJobFailed if failed or cancelled
+for c in atb.compounds.conformers(7, max_relative_energy=25.0).all():
+    print(c.molid, c.relative_energy)               # kJ/mol from the lowest; unscored last
+near = atb.molecules.conformations(21, max_relative_energy=25.0)   # molid order, filtered
+
+# retry-safe submission: the same key and structure never submits twice
+pending = atb.molecules.submit(pdb, netcharge=0, idempotency_key="run-42-lig-7", wait=False)
+```
+
+`submit(wait=False)` returns the pending `Job` when the server answers `202` (poll it with
+`atb.jobs.get` / `atb.jobs.wait`); `idempotency_key` is sent as the `Idempotency-Key` header, a
+retry with the same body is answered from the original job, and the same key with another
+body raises `IdempotencyKeyReused`.
 
 ### Admin
 
@@ -245,6 +275,10 @@ D9). Every call needs an API key carrying the `admin` scope and is audited
 server-side, reads included. `client.admin.molecules.update(molid,
 max_qm_level=...)` is the one call a `pipeline:write` service key may also make —
 every other admin field, and every other admin call, needs `admin`.
+`client.admin.rotamer_jobs.create(molid=… | compound_id=…, submission_budget=20,
+seed_budget=500, seed_source="rotor", window_kj=25.0, dry_run=False, force=False)` queues a
+rotamer search and `.cancel(job_id)` stops one (cluster time, hence admin);
+`RotamerJobExists` names a compound's existing job.
 
 Root operations (promoting an admin, deleting a molecule or an account, granting
 `admin` on a key) are **not** part of this client: they exist only on the server's

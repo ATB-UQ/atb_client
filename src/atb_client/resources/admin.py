@@ -12,6 +12,7 @@ from typing import Any, Dict, Iterable, Optional, Union
 from .. import _ops
 from .._base import Resource, operation
 from .._transport import request
+from ..exceptions import RotamerJobNotFound
 from ..models import (
     AdminUser,
     AdminUserDetail,
@@ -22,6 +23,7 @@ from ..models import (
     DeletionRequestPage,
     QuotaApproved,
     QuotaRequestItem,
+    RotamerJob,
     ScanCancelled,
     ScanQueued,
     StalledItem,
@@ -284,6 +286,68 @@ class AdminMolecules(Resource):
         )
 
 
+class AdminRotamerJobs(Resource):
+    """``client.admin.rotamer_jobs`` -- request and cancel rotamer searches. Reading them
+    is ``client.rotamer_jobs`` (every key)."""
+
+    @operation
+    def create(
+        self,
+        molid: Optional[int] = None,
+        compound_id: Optional[int] = None,
+        submission_budget: int = 20,
+        seed_budget: int = 500,
+        seed_source: str = "rotor",
+        window_kj: float = 25.0,
+        max_qm_level: Optional[int] = None,
+        public: Optional[bool] = None,
+        dry_run: bool = False,
+        force: bool = False,
+    ):
+        """``POST /admin/rotamer-jobs`` -> the queued :class:`RotamerJob` (``201``).
+        Needs a key carrying the ``admin`` scope: the search and the submission of its
+        lowest ``submission_budget`` minima to the ATB cost cluster time.
+
+        Give exactly one of ``molid`` and ``compound_id`` (``compound_id`` searches the
+        compound's best public molecule). ``seed_source`` is ``rotor``, ``etkdg`` or
+        ``union``; ``window_kj`` keeps minima within that many kJ/mol of the lowest.
+        ``max_qm_level`` and ``public`` default to the searched molecule's own
+        (``public=True`` on a private molecule is refused). ``dry_run`` searches, selects
+        and checks each selection against the ATB but submits nothing.
+
+        One live job per compound: :class:`RotamerJobExists` (``.job_id``, ``.state``)
+        names it, and also a finished one unless ``force=True``. Neither argument or both
+        raises :class:`ValidationError` (``target-required``)."""
+        body: Dict[str, Any] = {
+            "submission_budget": submission_budget,
+            "seed_budget": seed_budget,
+            "seed_source": seed_source,
+            "window_kj": window_kj,
+            "dry_run": dry_run,
+            "force": force,
+            **_drop_none(
+                molid=molid, compound_id=compound_id, max_qm_level=max_qm_level, public=public
+            ),
+        }
+        response = yield from request(self._client, "POST", "admin/rotamer-jobs", json=body)
+        return _ops.bind(RotamerJob.model_validate(response.json()), self._client)
+
+    @operation
+    def cancel(self, job_id: int):
+        """``DELETE /admin/rotamer-jobs/{id}`` -> the :class:`RotamerJob` (``202``, with
+        ``cancel_requested`` true). Needs a key carrying the ``admin`` scope. No new work
+        starts and work in flight is accounted for; then the driver marks it
+        ``cancelled`` (poll ``client.rotamer_jobs.get``). Submitted molecules are not
+        withdrawn. A finished job is a ``409`` :class:`Conflict` (``rotamer-job-finished``)."""
+        response = yield from request(
+            self._client,
+            "DELETE",
+            f"admin/rotamer-jobs/{int(job_id)}",
+            not_found=RotamerJobNotFound,
+        )
+        return _ops.bind(RotamerJob.model_validate(response.json()), self._client)
+
+
 class Admin(Resource):
     """``client.admin`` — account, quota, audit and deletion-request operations."""
 
@@ -291,6 +355,7 @@ class Admin(Resource):
         super().__init__(client)
         self.users = AdminUsers(client)
         self.molecules = AdminMolecules(client)
+        self.rotamer_jobs = AdminRotamerJobs(client)
 
     @operation
     def quota_requests(

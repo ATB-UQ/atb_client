@@ -134,6 +134,8 @@ def test_same_surface():
         "structures",
         "forcefields",
         "jobs",
+        "rotamer_jobs",
+        "compounds",
         "me",
         "parameters",
         "dihedrals",
