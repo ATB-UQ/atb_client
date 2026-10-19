@@ -147,8 +147,11 @@ def test_unlisted_server_slug_falls_back_to_its_status_family(api, client, slug,
 # --------------------------------------------------------------------------- known defects (xfail)
 
 
-@pytest.mark.xfail(strict=True, reason="review 2026-10 atb_client F1: page_of sends ?cursor=, "
-                   "GET /molecules/changes takes ?since=, so .all() re-reads the first page")
+@pytest.mark.xfail(
+    strict=True,
+    reason="review 2026-10 atb_client F1: page_of sends ?cursor=, "
+    "GET /molecules/changes takes ?since=, so .all() re-reads the first page",
+)
 def test_changes_all_passes_the_cursor_as_since(api, client):
     route = api.get("/molecules/changes")
 
@@ -169,22 +172,34 @@ def test_changes_all_passes_the_cursor_as_since(api, client):
     assert seen == [1, 2]
 
 
-@pytest.mark.xfail(strict=True, reason="review 2026-10 atb_client F2: Page.all() stops at an empty "
-                   "page, but /admin/molecules/stalled scans a window and may return an empty "
-                   "page that still has next_cursor")
+@pytest.mark.xfail(
+    strict=True,
+    reason="review 2026-10 atb_client F2: Page.all() stops at an empty "
+    "page, but /admin/molecules/stalled scans a window and may return an empty "
+    "page that still has next_cursor",
+)
 def test_stalled_all_continues_past_an_empty_scan_window(api, client):
     route = api.get("/admin/molecules/stalled")
     route.side_effect = [
         httpx.Response(200, json={"items": [], "scanned": 2000, "next_cursor": "c1"}),
-        httpx.Response(200, json={"items": [{"molid": 7, "status": {"stage": "stalled"}}],
-                                  "scanned": 10, "next_cursor": None}),
+        httpx.Response(
+            200,
+            json={
+                "items": [{"molid": 7, "status": {"stage": "stalled"}}],
+                "scanned": 10,
+                "next_cursor": None,
+            },
+        ),
     ]
     assert [item.molid for item in client.admin.molecules.stalled().all()] == [7]
 
 
-@pytest.mark.xfail(strict=True, reason="review 2026-10 atb_client F3: ?wait= is sized from the "
-                   "caller's deadline (up to 120 s) and ignores the client's read timeout "
-                   "(default 30 s), so a request the server holds ends in ReadTimeout and a retry")
+@pytest.mark.xfail(
+    strict=True,
+    reason="review 2026-10 atb_client F3: ?wait= is sized from the "
+    "caller's deadline (up to 120 s) and ignores the client's read timeout "
+    "(default 30 s), so a request the server holds ends in ReadTimeout and a retry",
+)
 def test_wait_parameter_does_not_exceed_the_read_timeout(api):
     route = api.get("/molecules/21/files/mtb_aa").respond(200, content=b"x")
     with ATBClient(api_key=KEY, base_url=BASE) as default_client:

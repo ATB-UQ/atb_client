@@ -188,6 +188,112 @@ class Advice(BaseModel):
     """
 
 
+class AgreementPoint(BaseModel):
+    model_config = ConfigDict(
+        extra='allow',
+    )
+    molid: Annotated[int, Field(title='Molid')]
+    """
+    The molecule.
+    """
+    name: Annotated[Optional[str], Field(title='Name')] = None
+    """
+    Its common name.
+    """
+    engine: Annotated[str, Field(title='Engine')]
+    """
+    The engine.
+    """
+    protocol: Annotated[str, Field(title='Protocol')]
+    """
+    The protocol.
+    """
+    campaign: Annotated[str, Field(title='Campaign')]
+    """
+    The campaign.
+    """
+    correction: Annotated[str, Field(title='Correction')]
+    """
+    What correction was applied to the calculated value; see CondensedPhaseResult.correction.
+    """
+    correction_label: Annotated[str, Field(title='Correction Label')]
+    """
+    Human-readable form of `correction`, or "" when it is "".
+    """
+    temperature_k: Annotated[Optional[float], Field(title='Temperature K')] = None
+    """
+    Simulation temperature (K).
+    """
+    calculated: Annotated[float, Field(title='Calculated')]
+    """
+    The calculated value.
+    """
+    calculated_uncertainty: Annotated[
+        Optional[float], Field(title='Calculated Uncertainty')
+    ] = None
+    """
+    Its uncertainty.
+    """
+    experimental: Annotated[float, Field(title='Experimental')]
+    """
+    The experimental reference.
+    """
+    experimental_uncertainty: Annotated[
+        Optional[float], Field(title='Experimental Uncertainty')
+    ] = None
+    """
+    Its uncertainty.
+    """
+
+
+class AgreementStatistics(BaseModel):
+    model_config = ConfigDict(
+        extra='allow',
+    )
+    sample_size: Annotated[int, Field(title='Sample Size')]
+    """
+    Points compared.
+    """
+    unique_compounds: Annotated[int, Field(title='Unique Compounds')]
+    """
+    Distinct compounds among them.
+    """
+    mean_signed_error: Annotated[Optional[float], Field(title='Mean Signed Error')] = (
+        None
+    )
+    """
+    MSE: mean of calculated minus experimental.
+    """
+    average_unsigned_error: Annotated[
+        Optional[float], Field(title='Average Unsigned Error')
+    ] = None
+    """
+    AUE: mean absolute error.
+    """
+    root_mean_square_error: Annotated[
+        Optional[float], Field(title='Root Mean Square Error')
+    ] = None
+    """
+    RMSE.
+    """
+    r_squared: Annotated[Optional[float], Field(title='R Squared')] = None
+    """
+    Squared Pearson correlation (null below 3 points).
+    """
+    kendall_tau: Annotated[Optional[float], Field(title='Kendall Tau')] = None
+    """
+    Kendall's tau-b rank correlation (null below 2 points).
+    """
+    slope: Annotated[Optional[float], Field(title='Slope')] = None
+    """
+    Slope of the least-squares line, calculated on experimental.
+    """
+    intercept: Annotated[Optional[float], Field(title='Intercept')] = None
+    """
+    Its intercept, in the property unit.
+    """
+
+
 class ArchetypeDetail(BaseModel):
     """
     One fitted archetype, as the archetype page shows it, less the whole-library IFP
@@ -985,6 +1091,32 @@ class CompoundUpdated(BaseModel):
     """
 
 
+class CondensedPhaseChoices(BaseModel):
+    model_config = ConfigDict(
+        extra='allow',
+    )
+    properties: Annotated[List[str], Field(title='Properties')]
+    """
+    Properties with at least one neat-liquid result.
+    """
+    engines: Annotated[List[str], Field(title='Engines')]
+    """
+    Engines with at least one result.
+    """
+    protocols: Annotated[List[str], Field(title='Protocols')]
+    """
+    Protocols with at least one result.
+    """
+    campaigns: Annotated[List[str], Field(title='Campaigns')]
+    """
+    Campaigns with at least one result.
+    """
+    datasets: Annotated[List[str], Field(title='Datasets')]
+    """
+    The data sets the comparison can be restricted to.
+    """
+
+
 class Conformation(BaseModel):
     model_config = ConfigDict(
         extra='allow',
@@ -1102,6 +1234,24 @@ class CurationResult(BaseModel):
     stage: Annotated[Optional[str], Field(title='Stage')] = None
     """
     The status stage now (see the guide).
+    """
+
+
+class DatasetMembership(BaseModel):
+    model_config = ConfigDict(
+        extra='allow',
+    )
+    name: Annotated[str, Field(title='Name')]
+    """
+    The dataset name, as `?dataset=` takes it.
+    """
+    label: Annotated[str, Field(title='Label')]
+    """
+    Its display name (the registry label; an unregistered name is shown as itself).
+    """
+    kind: Annotated[Optional[str], Field(title='Kind')] = None
+    """
+    benchmark | provenance | campaign; null for a name the registry does not list.
     """
 
 
@@ -1311,6 +1461,28 @@ class ForcefieldLinks(BaseModel):
     lammps: Annotated[Optional[str], Field(title='Lammps')] = None
     """
     The moltemplate (.lt) conversion of the GXX IFP.
+    """
+
+
+class FunctionalGroupCount(BaseModel):
+    model_config = ConfigDict(
+        extra='allow',
+    )
+    key: Annotated[str, Field(title='Key')]
+    """
+    The group key (see `GET /functional_groups`).
+    """
+    label: Annotated[str, Field(title='Label')]
+    """
+    Its display name.
+    """
+    n: Annotated[int, Field(title='N')]
+    """
+    How many times it occurs. A parent counts every occurrence of its leaves.
+    """
+    is_leaf: Annotated[bool, Field(title='Is Leaf')]
+    """
+    A matched (stored) group; false for a parent of the hierarchy, derived from its leaves.
     """
 
 
@@ -1727,6 +1899,86 @@ class Limits(BaseModel):
     daily_limit: Annotated[Optional[int], Field(title='Daily Limit')] = None
     """
     Weighted requests per UTC day. Null: not limited.
+    """
+
+
+class LiquidExperimentalValue(BaseModel):
+    model_config = ConfigDict(
+        extra='allow',
+    )
+    id: Annotated[int, Field(title='Id')]
+    """
+    Row id.
+    """
+    property: Annotated[str, Field(title='Property')]
+    """
+    The property: density, hvap, self_diffusion, dielectric, viscosity, isothermal_compressibility, thermal_expansion, heat_capacity_p, surface_tension, excess_volume or excess_enthalpy.
+    """
+    component: Annotated[str, Field(title='Component')]
+    """
+    The species a per-species mixture property refers to; '' otherwise.
+    """
+    value: Annotated[Optional[float], Field(title='Value')] = None
+    """
+    The measured value.
+    """
+    uncertainty: Annotated[Optional[float], Field(title='Uncertainty')] = None
+    """
+    Its uncertainty, as reported.
+    """
+    unit: Annotated[str, Field(title='Unit')]
+    """
+    Its unit, fixed per property: kg/m3, kJ/mol, 1e-9 m2/s, 1 (dimensionless), mPa.s, 1/GPa, 1e-3/K, J/mol/K, mN/m, cm3/mol, J/mol.
+    """
+    temperature_k: Annotated[Optional[float], Field(title='Temperature K')] = None
+    """
+    Temperature (K).
+    """
+    pressure_kpa: Annotated[Optional[float], Field(title='Pressure Kpa')] = None
+    """
+    Pressure (kPa).
+    """
+    source: Annotated[str, Field(title='Source')]
+    """
+    The reference (e.g. `caleman2012`).
+    """
+    doi: Annotated[Optional[str], Field(title='Doi')] = None
+    """
+    Its DOI, if any.
+    """
+    locator: Annotated[Optional[str], Field(title='Locator')] = None
+    """
+    Where in the source.
+    """
+    note: Annotated[Optional[str], Field(title='Note')] = None
+    """
+    A note on the value.
+    """
+
+
+class LiquidReferenceSource(BaseModel):
+    model_config = ConfigDict(
+        extra='allow',
+    )
+    source: Annotated[str, Field(title='Source')]
+    """
+    The reference, as the data file names it (e.g. `caleman2012`).
+    """
+    doi: Annotated[Optional[str], Field(title='Doi')] = None
+    """
+    Its DOI, if any.
+    """
+    value: Annotated[Optional[float], Field(title='Value')] = None
+    """
+    The value that source reports.
+    """
+    uncertainty: Annotated[Optional[float], Field(title='Uncertainty')] = None
+    """
+    The uncertainty it reports, if any.
+    """
+    locator: Annotated[Optional[str], Field(title='Locator')] = None
+    """
+    Where in the source (e.g. `SI Table S2`).
     """
 
 
@@ -2415,6 +2667,20 @@ class OfferedJobs(BaseModel):
     jobs: Annotated[List[Optional[GamessJob]], Field(title='Jobs')]
     """
     null where a deck could not be built (the admins were emailed why), as v0.1 returned it.
+    """
+
+
+class Pattern(BaseModel):
+    model_config = ConfigDict(
+        extra='allow',
+    )
+    smarts: Annotated[str, Field(title='Smarts')]
+    """
+    A SMARTS query graph.
+    """
+    anchor: Annotated[List[int], Field(title='Anchor')]
+    """
+    The 0-based indices of its query atoms (in SMARTS order) that define one occurrence: matches with the same atoms here count once.
     """
 
 
@@ -3875,6 +4141,28 @@ class AdminUserDetail(BaseModel):
     """
 
 
+class AgreementGroup(BaseModel):
+    model_config = ConfigDict(
+        extra='allow',
+    )
+    engine: Annotated[str, Field(title='Engine')]
+    """
+    The engine.
+    """
+    protocol: Annotated[str, Field(title='Protocol')]
+    """
+    The protocol.
+    """
+    correction: Annotated[Optional[str], Field(title='Correction')] = ''
+    """
+    What correction the points in this group share; see CondensedPhaseResult.correction. '' for every property but self_diffusion, whose 'none' and 'yeh_hummer' populations are never averaged into one statistic.
+    """
+    statistics: AgreementStatistics
+    """
+    Agreement for this engine, protocol and correction.
+    """
+
+
 class ArchetypePage(BaseModel):
     model_config = ConfigDict(
         extra='allow',
@@ -3980,6 +4268,60 @@ class BatchRequest(BaseModel):
     """
 
 
+class CondensedPhaseStatistics(BaseModel):
+    model_config = ConfigDict(
+        extra='allow',
+    )
+    available: Annotated[bool, Field(title='Available')]
+    """
+    False while this server has no condensed-phase data at all.
+    """
+    property: Annotated[Optional[str], Field(title='Property')] = None
+    """
+    The property compared (the first with results when not asked for).
+    """
+    unit: Annotated[Optional[str], Field(title='Unit')] = None
+    """
+    Its unit, fixed per property: kg/m3, kJ/mol, 1e-9 m2/s, 1 (dimensionless), mPa.s, 1/GPa, 1e-3/K, J/mol/K, mN/m, cm3/mol, J/mol.
+    """
+    engine: Annotated[Optional[str], Field(title='Engine')] = None
+    """
+    The engine filter, if any.
+    """
+    protocol: Annotated[Optional[str], Field(title='Protocol')] = None
+    """
+    The protocol filter, if any.
+    """
+    campaign: Annotated[Optional[str], Field(title='Campaign')] = None
+    """
+    The campaign filter, if any.
+    """
+    dataset: Annotated[Optional[str], Field(title='Dataset')] = None
+    """
+    The data-set filter, if any.
+    """
+    overall: Optional[AgreementStatistics] = None
+    """
+    Agreement over every point selected.
+    """
+    groups: Annotated[List[AgreementGroup], Field(title='Groups')]
+    """
+    Agreement per engine and protocol.
+    """
+    choices: Optional[CondensedPhaseChoices] = None
+    """
+    What the filters can take.
+    """
+    points: Annotated[Optional[List[AgreementPoint]], Field(title='Points')] = None
+    """
+    With `include_points=true`: the points themselves.
+    """
+    note: Annotated[Optional[str], Field(title='Note')] = None
+    """
+    Why there is nothing, when so.
+    """
+
+
 class Forcefield(BaseModel):
     model_config = ConfigDict(
         extra='allow',
@@ -4032,6 +4374,98 @@ class ForcefieldList(BaseModel):
     """
 
 
+class FunctionalGroup(BaseModel):
+    model_config = ConfigDict(
+        extra='allow',
+    )
+    key: Annotated[str, Field(title='Key')]
+    """
+    The stable key: what `?functional_group=` takes and the molecule body reports.
+    """
+    label: Annotated[str, Field(title='Label')]
+    """
+    Display name.
+    """
+    is_leaf: Annotated[bool, Field(title='Is Leaf')]
+    """
+    A matched group (true) or a parent of the hierarchy (false), which is never matched and stands for any of its leaves.
+    """
+    parents: Annotated[List[str], Field(title='Parents')]
+    """
+    Its direct parents.
+    """
+    ancestors: Annotated[List[str], Field(title='Ancestors')]
+    """
+    All its parents, transitively.
+    """
+    leaves: Annotated[List[str], Field(title='Leaves')]
+    """
+    The leaves it stands for: itself for a leaf, its descendant leaves for a parent. A filter on a parent matches any of them.
+    """
+    smarts: Annotated[Optional[str], Field(title='Smarts')] = None
+    """
+    The SMARTS query graph of a leaf (RDKit default aromaticity, implicit hydrogens); null for a parent.
+    """
+    alternative_smarts: Annotated[List[str], Field(title='Alternative Smarts')]
+    """
+    Further SMARTS whose matches count as the same group.
+    """
+    examples: Annotated[Dict[str, int], Field(title='Examples')]
+    """
+    SMILES that must match, with their expected count (leaves only).
+    """
+    near_misses: Annotated[List[str], Field(title='Near Misses')]
+    """
+    SMILES that must not match (leaves only).
+    """
+    section: Annotated[Optional[str], Field(title='Section')] = None
+    """
+    The section of the vocabulary a leaf is listed in (e.g. "Oxygen: carbonyl family"); null for a parent.
+    """
+    patterns: Annotated[List[Pattern], Field(title='Patterns')]
+    """
+    Every pattern of a leaf with its anchor, the main one (`smarts`) first; their occurrences are pooled. Empty for a parent.
+    """
+    subsumed_by: Annotated[List[str], Field(title='Subsumed By')]
+    """
+    Leaves that take precedence: an occurrence whose anchor atoms lie inside a match of one of these is not counted.
+    """
+    takes_precedence_over: Annotated[List[str], Field(title='Takes Precedence Over')]
+    """
+    The inverse: leaves not counted inside a match of this one.
+    """
+    sssr_ring: Annotated[bool, Field(title='Sssr Ring')]
+    """
+    The anchor atoms must form one of the smallest rings of the molecule.
+    """
+    with_exocyclic: Annotated[bool, Field(title='With Exocyclic')]
+    """
+    Atoms double-bonded to the anchor from outside belong to the occurrence (a ring owns its C=O, so one ring counts once).
+    """
+    compounds: Annotated[int, Field(title='Compounds')]
+    """
+    Annotated compounds that have it.
+    """
+
+
+class FunctionalGroupVocabulary(BaseModel):
+    model_config = ConfigDict(
+        extra='allow',
+    )
+    scheme_version: Annotated[int, Field(title='Scheme Version')]
+    """
+    The annotation scheme. Changes with any change to a definition, the vocabulary or the builder; every compound is then re-annotated.
+    """
+    annotated_compounds: Annotated[Dict[str, int], Field(title='Annotated Compounds')]
+    """
+    Annotated compounds at this scheme version by status (ok, unsupported, failed).
+    """
+    items: Annotated[List[FunctionalGroup], Field(title='Items')]
+    """
+    Every group, leaves first, then parents.
+    """
+
+
 class Indicator(BaseModel):
     model_config = ConfigDict(
         extra='allow',
@@ -4065,6 +4499,36 @@ class IndicatorSeries(BaseModel):
     points: Annotated[List[StatisticPoint], Field(title='Points')]
     """
     The last 365 recorded points, oldest first.
+    """
+
+
+class LiquidReference(BaseModel):
+    model_config = ConfigDict(
+        extra='allow',
+    )
+    value: Annotated[float, Field(title='Value')]
+    """
+    The experimental reference: the mean over sources at the measured temperature closest to the simulation (within 5 K).
+    """
+    uncertainty: Annotated[Optional[float], Field(title='Uncertainty')] = None
+    """
+    The sample standard deviation over sources when there are several, else the reported uncertainty.
+    """
+    unit: Annotated[str, Field(title='Unit')]
+    """
+    Its unit, fixed per property: kg/m3, kJ/mol, 1e-9 m2/s, 1 (dimensionless), mPa.s, 1/GPa, 1e-3/K, J/mol/K, mN/m, cm3/mol, J/mol.
+    """
+    temperature_k: Annotated[float, Field(title='Temperature K')]
+    """
+    The temperature the reference values were measured at (K).
+    """
+    n: Annotated[int, Field(title='N')]
+    """
+    How many values were averaged.
+    """
+    sources: Annotated[List[LiquidReferenceSource], Field(title='Sources')]
+    """
+    The values averaged.
     """
 
 
@@ -4221,6 +4685,22 @@ class Molecule(BaseModel):
     tags: Annotated[Optional[List[str]], Field(title='Tags')] = []
     """
     The compound's curated tags.
+    """
+    functional_groups: Annotated[
+        Optional[List[FunctionalGroupCount]], Field(title='Functional Groups')
+    ] = None
+    """
+    The named functional groups of the compound, derived from its structure: the matched leaves and their parents, leaves first. Only compounds with experimental reference data are annotated; null means not annotated, [] annotated with no groups (or unsupported, see `functional_groups_status`).
+    """
+    functional_groups_status: Annotated[
+        Optional[str], Field(title='Functional Groups Status')
+    ] = None
+    """
+    ok | unsupported | failed: the annotation at the current scheme version; null when not annotated. `unsupported` (an element or size outside the vocabulary's scope) and `failed` carry no groups.
+    """
+    datasets: Annotated[Optional[List[DatasetMembership]], Field(title='Datasets')] = []
+    """
+    The datasets the compound is in (any of its molecules carries the dataset row), by name.
     """
     has_ti: Annotated[Optional[bool], Field(title='Has Ti')] = False
     """
@@ -4474,6 +4954,108 @@ class ValidationPut(BaseModel):
     """
 
 
+class CondensedPhaseResult(BaseModel):
+    model_config = ConfigDict(
+        extra='allow',
+    )
+    id: Annotated[int, Field(title='Id')]
+    """
+    Result id.
+    """
+    property: Annotated[str, Field(title='Property')]
+    """
+    The property: density, hvap, self_diffusion, dielectric, viscosity, isothermal_compressibility, thermal_expansion, heat_capacity_p, surface_tension, excess_volume or excess_enthalpy.
+    """
+    component: Annotated[str, Field(title='Component')]
+    """
+    The species a per-species mixture property refers to; '' otherwise.
+    """
+    correction: Annotated[str, Field(title='Correction')]
+    """
+    What correction was applied, distinguishing several values of the same property/engine/protocol/temperature that differ only in it: '' where no correction is applicable; for self_diffusion, 'none' (uncorrected D_pbc) or 'yeh_hummer' (Yeh-Hummer finite-size corrected).
+    """
+    correction_label: Annotated[str, Field(title='Correction Label')]
+    """
+    Human-readable form of `correction` ('(Yeh–Hummer corrected)' / '(uncorrected, periodic box)'), or '' when `correction` is ''.
+    """
+    campaign: Annotated[str, Field(title='Campaign')]
+    """
+    The campaign that computed it.
+    """
+    engine: Annotated[str, Field(title='Engine')]
+    """
+    The MD engine: gromos, gromacs or amber.
+    """
+    engine_version: Annotated[Optional[str], Field(title='Engine Version')] = None
+    """
+    The engine version.
+    """
+    host: Annotated[Optional[str], Field(title='Host')] = None
+    """
+    Where it ran (e.g. `setonix`).
+    """
+    protocol: Annotated[str, Field(title='Protocol')]
+    """
+    The simulation protocol (e.g. `gromos_like_v1`).
+    """
+    force_field: Annotated[str, Field(title='Force Field')]
+    """
+    The force field (e.g. `54A7_ATB`).
+    """
+    value: Annotated[Optional[float], Field(title='Value')] = None
+    """
+    The calculated value.
+    """
+    uncertainty: Annotated[Optional[float], Field(title='Uncertainty')] = None
+    """
+    Its uncertainty (a plateaued block-averaging estimate).
+    """
+    unit: Annotated[str, Field(title='Unit')]
+    """
+    Its unit, fixed per property: kg/m3, kJ/mol, 1e-9 m2/s, 1 (dimensionless), mPa.s, 1/GPa, 1e-3/K, J/mol/K, mN/m, cm3/mol, J/mol.
+    """
+    temperature_k: Annotated[Optional[float], Field(title='Temperature K')] = None
+    """
+    Simulation temperature (K).
+    """
+    pressure_kpa: Annotated[Optional[float], Field(title='Pressure Kpa')] = None
+    """
+    Simulation pressure (kPa).
+    """
+    n_molecules: Annotated[Optional[int], Field(title='N Molecules')] = None
+    """
+    Molecules in the simulated box.
+    """
+    sampled_ns: Annotated[Optional[float], Field(title='Sampled Ns')] = None
+    """
+    Production sampling per replicate (ns).
+    """
+    n_replicates: Annotated[Optional[int], Field(title='N Replicates')] = None
+    """
+    Independent replicates.
+    """
+    completed_at: Annotated[Optional[str], Field(title='Completed At')] = None
+    """
+    When the analysis was recorded (UTC).
+    """
+    topology_hash: Annotated[Optional[str], Field(title='Topology Hash')] = None
+    """
+    The topology simulated, which need not be the current one.
+    """
+    plot: Annotated[Optional[str], Field(title='Plot')] = None
+    """
+    The website path of the result's convergence plot (SVG), when there is one.
+    """
+    experimental: Optional[LiquidReference] = None
+    """
+    The experimental reference, if one was measured within 5 K.
+    """
+    error: Annotated[Optional[float], Field(title='Error')] = None
+    """
+    Calculated minus experimental, in the same unit.
+    """
+
+
 class RotamerJob(BaseModel):
     model_config = ConfigDict(
         extra='allow',
@@ -4598,4 +5180,30 @@ class RotamerJob(BaseModel):
     advice: Optional[RotamerAdvice] = None
     """
     Would a larger budget help: the latest, frozen at `complete`.
+    """
+
+
+class CondensedPhase(BaseModel):
+    model_config = ConfigDict(
+        extra='allow',
+    )
+    molid: Annotated[int, Field(title='Molid')]
+    """
+    The molecule.
+    """
+    available: Annotated[bool, Field(title='Available')]
+    """
+    False while this server has no condensed-phase data at all (the tables are not installed); the lists are then empty.
+    """
+    results: Annotated[List[CondensedPhaseResult], Field(title='Results')]
+    """
+    The latest result per property, engine, protocol, temperature and component, each with its experimental reference.
+    """
+    experimental: Annotated[List[LiquidExperimentalValue], Field(title='Experimental')]
+    """
+    Every experimental value for the molecule's compound.
+    """
+    note: Annotated[Optional[str], Field(title='Note')] = None
+    """
+    Why there is nothing, when so.
     """

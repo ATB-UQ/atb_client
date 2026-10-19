@@ -32,6 +32,8 @@ Each is attached to a client as e.g. `atb.molecules`, `atb.files`.
 
 ::: atb_client.resources.reference.SiteStatistics
 
+::: atb_client.resources.reference.FunctionalGroups
+
 ::: atb_client.resources.admin.Admin
 
 ::: atb_client.resources.admin.AdminUsers

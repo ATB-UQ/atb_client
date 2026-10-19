@@ -1,6 +1,7 @@
 """Read-only reference data: the bonded-parameter library (``client.parameters``),
-dihedral archetypes (``client.dihedrals``), tautomer groups (``client.tautomers``) and
-site statistics (``client.statistics``). All need only the ``read`` scope."""
+dihedral archetypes (``client.dihedrals``), tautomer groups (``client.tautomers``),
+site statistics (``client.statistics``) and the functional-group vocabulary
+(``client.functional_groups``). All need only the ``read`` scope."""
 
 from __future__ import annotations
 
@@ -11,6 +12,8 @@ from .._base import Resource, operation
 from ..models import (
     ArchetypeDetail,
     ArchetypePage,
+    CondensedPhaseStatistics,
+    FunctionalGroupVocabulary,
     LibraryVersions,
     MotifDetail,
     MotifPage,
@@ -180,5 +183,58 @@ class SiteStatistics(Resource):
                     "include_validation_set": include_validation_set,
                     "force_regen": force_regen,
                 },
+            )
+        )
+
+    @operation
+    def condensed_phase(
+        self,
+        *,
+        property: Optional[str] = None,
+        engine: Optional[str] = None,
+        protocol: Optional[str] = None,
+        campaign: Optional[str] = None,
+        dataset: Optional[str] = None,
+        include_points: Optional[bool] = None,
+    ):
+        """``GET /statistics/condensed_phase`` → :class:`CondensedPhaseStatistics`: how
+        well simulated neat-liquid properties agree with experiment (MSE, AUE, RMSE, R²,
+        Kendall's tau, fit), overall and per engine and protocol. ``property`` is
+        ``density``, ``hvap``, ``self_diffusion``, ...; the default is the first with
+        results (``.choices`` lists what the filters take). ``dataset`` restricts to
+        molecules flagged with a data set (``liquid_core``, ``solvation_707``).
+        ``include_points`` adds every point compared. An unknown ``property``,
+        ``engine`` or ``dataset`` is a 400."""
+        params = {
+            "property": property,
+            "engine": engine,
+            "protocol": protocol,
+            "campaign": campaign,
+            "dataset": dataset,
+            "include_points": include_points,
+        }
+        return (
+            yield from _ops.model_call(
+                self._client,
+                CondensedPhaseStatistics,
+                "GET",
+                "statistics/condensed_phase",
+                params=params,
+            )
+        )
+
+
+class FunctionalGroups(Resource):
+    """``GET /functional_groups``: the vocabulary of derived functional groups."""
+
+    @operation
+    def list(self):
+        """``GET /functional_groups`` → :class:`FunctionalGroupVocabulary`: every group
+        (key, label, SMARTS, examples, place in the hierarchy) with the number of
+        annotated compounds that have it. Filter molecules by group with
+        ``molecules.search(functional_group=...)``."""
+        return (
+            yield from _ops.model_call(
+                self._client, FunctionalGroupVocabulary, "GET", "functional_groups"
             )
         )

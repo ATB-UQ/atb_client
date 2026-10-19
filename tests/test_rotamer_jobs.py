@@ -175,9 +175,7 @@ def test_rotamer_job_exists_names_the_job(api, client):
 
 
 def test_admin_cancel(api, client):
-    route = api.delete("/admin/rotamer-jobs/3").respond(
-        202, json=job(cancel_requested=True)
-    )
+    route = api.delete("/admin/rotamer-jobs/3").respond(202, json=job(cancel_requested=True))
     result = client.admin.rotamer_jobs.cancel(3)
     assert route.called and result.cancel_requested is True
 
@@ -198,9 +196,7 @@ def test_list_sends_filters_and_pages_by_offset(api, client):
             200,
             json={"items": [summary(5), summary(4)], "total": 3, "limit": 2, "offset": 0},
         ),
-        httpx.Response(
-            200, json={"items": [summary(3)], "total": 3, "limit": 2, "offset": 2}
-        ),
+        httpx.Response(200, json={"items": [summary(3)], "total": 3, "limit": 2, "offset": 2}),
     ]
     page = client.rotamer_jobs.list(molid=21, state="searching", limit=2)
     assert isinstance(page, RotamerJobPage) and page.total == 3
@@ -402,9 +398,7 @@ def test_submit_without_key_sends_no_header(api, client):
 
 
 def test_submit_key_reused(api, client):
-    api.post("/molecules").respond(
-        422, json=problem("idempotency-key-reused", 422, job_id="01J")
-    )
+    api.post("/molecules").respond(422, json=problem("idempotency-key-reused", 422, job_id="01J"))
     with pytest.raises(IdempotencyKeyReused) as info:
         client.molecules.submit("ATOM", netcharge=0, idempotency_key="k")
     assert info.value.job_id == "01J"
@@ -431,7 +425,9 @@ def test_async_submit_with_key_and_no_wait(api):
     async def main_():
         async with AsyncATBClient(api_key=KEY, base_url=BASE) as atb:
             route = api.post("/molecules").respond(
-                202, json={"id": "01JOB", "state": "queued"}, headers={"Location": "/api/v1/jobs/01JOB"}
+                202,
+                json={"id": "01JOB", "state": "queued"},
+                headers={"Location": "/api/v1/jobs/01JOB"},
             )
             result = await atb.molecules.submit(
                 "ATOM", netcharge=0, idempotency_key="k", wait=False

@@ -185,6 +185,9 @@ SEARCH_FILTERS: Dict[str, Any] = {
     "public": True,
     "owner": "me",
     "submitted_after": "2026-01-01T00:00:00Z",
+    "dataset": "solv_freesolv",
+    "functional_group": "chloro,amine",
+    "min_count": 2,
 }
 
 Call = Callable[[ATBClient], Any]
@@ -219,6 +222,10 @@ IMPLEMENTED: Dict[str, Tuple[Call, str]] = {
     "molecules.qm": (lambda c: c.molecules.qm(21, level=1), "molecules_qm"),
     "molecules.validation": (lambda c: c.molecules.validation(21), "molecules_validation"),
     "molecules.solvation": (lambda c: c.molecules.solvation(21), "molecules_solvation"),
+    "molecules.condensed_phase": (
+        lambda c: c.molecules.condensed_phase(21),
+        "molecules_condensed_phase",
+    ),
     "molecules.parameters": (
         lambda c: c.molecules.parameters(21, ff="54A7", hash="abc12"),
         "molecules_parameters",
@@ -242,9 +249,7 @@ IMPLEMENTED: Dict[str, Tuple[Call, str]] = {
         "compounds_conformers",
     ),
     "rotamer_jobs.list": (
-        lambda c: c.rotamer_jobs.list(
-            molid=21, compound_id=7, state="complete", limit=5, offset=5
-        ),
+        lambda c: c.rotamer_jobs.list(molid=21, compound_id=7, state="complete", limit=5, offset=5),
         "rotamer_jobs_list",
     ),
     "rotamer_jobs.get": (lambda c: c.rotamer_jobs.get(3), "rotamer_jobs_get"),
@@ -308,6 +313,18 @@ IMPLEMENTED: Dict[str, Tuple[Call, str]] = {
         lambda c: c.statistics.get("molecules", include_validation_set=True, force_regen=False),
         "statistics_get",
     ),
+    "statistics.condensed_phase": (
+        lambda c: c.statistics.condensed_phase(
+            property="density",
+            engine="gromos",
+            protocol="p",
+            campaign="c",
+            dataset="liquid_core",
+            include_points=True,
+        ),
+        "statistics_condensed_phase",
+    ),
+    "functional_groups.list": (lambda c: c.functional_groups.list(), "functional_groups_list"),
     "molecules.remap": (
         lambda c: c.molecules.remap(21, "ATOM", format="pdb"),
         "molecules_remap",
@@ -639,6 +656,21 @@ def test_the_client_never_targets_root_routes():
 MODEL_MAP: Dict[str, type] = {
     "Account": models.Account,
     "ArchetypeDetail": models.ArchetypeDetail,
+    "AgreementGroup": models.AgreementGroup,
+    "AgreementPoint": models.AgreementPoint,
+    "AgreementStatistics": models.AgreementStatistics,
+    "CondensedPhase": models.CondensedPhase,
+    "CondensedPhaseChoices": models.CondensedPhaseChoices,
+    "CondensedPhaseResult": models.CondensedPhaseResult,
+    "CondensedPhaseStatistics": models.CondensedPhaseStatistics,
+    "DatasetMembership": models.DatasetMembership,
+    "FunctionalGroup": models.FunctionalGroup,
+    "FunctionalGroupCount": models.FunctionalGroupCount,
+    "FunctionalGroupVocabulary": models.FunctionalGroupVocabulary,
+    "LiquidExperimentalValue": models.LiquidExperimentalValue,
+    "LiquidReference": models.LiquidReference,
+    "LiquidReferenceSource": models.LiquidReferenceSource,
+    "Pattern": models.FunctionalGroupPattern,
     "ArchetypePage": models.ArchetypePage,
     "ArchetypeRow": models.ArchetypeRow,
     "BondedParameters": models.BondedParameters,

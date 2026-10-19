@@ -8,13 +8,16 @@ from datetime import date, datetime, timezone
 
 import pytest
 
-from atb_client import MoleculeNotFound, NotFound
+from atb_client import ATBError, MoleculeNotFound, NotFound
 from atb_client.models import (
     ArchetypeDetail,
     ArchetypePage,
     BondedParameters,
+    CondensedPhase,
+    CondensedPhaseStatistics,
     Conformations,
     ForcefieldList,
+    FunctionalGroupVocabulary,
     Health,
     LibraryVersions,
     Me,
@@ -498,3 +501,162 @@ def test_quota_request(api, client):
     }
     with pytest.raises(ValueError):
         client.me.request_quota(reason="nothing asked")
+
+
+def test_condensed_phase(api, client):
+    api.get("/molecules/21/condensed_phase").respond(
+        200,
+        json={
+            "molid": 21,
+            "available": True,
+            "results": [
+                {
+                    "id": 1,
+                    "property": "density",
+                    "engine": "gromos",
+                    "value": 790.0,
+                    "unit": "kg/m3",
+                    "temperature_k": 298.15,
+                    "completed_at": "2026-09-01T02:03:04Z",
+                    "experimental": {
+                        "value": 785.0,
+                        "unit": "kg/m3",
+                        "temperature_k": 298.0,
+                        "n": 1,
+                        "sources": [{"source": "caleman2012", "value": 785.0}],
+                    },
+                    "error": 5.0,
+                }
+            ],
+            "experimental": [{"id": 9, "property": "density", "source": "caleman2012"}],
+        },
+    )
+    cp = client.molecules.condensed_phase(21)
+    assert isinstance(cp, CondensedPhase)
+    assert cp.results[0].experimental.sources[0].source == "caleman2012"
+    assert cp.results[0].completed_at == datetime(2026, 9, 1, 2, 3, 4, tzinfo=UTC)
+    assert cp.results[0].error == 5.0
+    assert cp.experimental[0].id == 9
+
+
+def test_condensed_phase_unavailable(api, client):
+    api.get("/molecules/21/condensed_phase").respond(
+        200, json={"molid": 21, "available": False, "results": [], "experimental": [], "note": "n"}
+    )
+    cp = client.molecules.condensed_phase(21)
+    assert cp.available is False and cp.results == [] and cp.note == "n"
+
+
+def test_condensed_phase_statistics(api, client):
+    route = api.get("/statistics/condensed_phase").respond(
+        200,
+        json={
+            "available": True,
+            "property": "density",
+            "unit": "kg/m3",
+            "overall": {"sample_size": 3, "unique_compounds": 3, "r_squared": 0.99},
+            "groups": [
+                {
+                    "engine": "gromos",
+                    "protocol": "gromos_like_v1",
+                    "statistics": {"sample_size": 3, "unique_compounds": 3, "slope": 1.01},
+                }
+            ],
+            "choices": {
+                "properties": ["density"],
+                "engines": ["gromos"],
+                "datasets": ["liquid_core"],
+            },
+            "points": [{"molid": 21, "engine": "gromos", "calculated": 1.0, "experimental": 2.0}],
+        },
+    )
+    stats = client.statistics.condensed_phase(
+        property="density", dataset="liquid_core", include_points=True
+    )
+    assert isinstance(stats, CondensedPhaseStatistics)
+    assert stats.overall.r_squared == 0.99
+    assert stats.groups[0].statistics.slope == 1.01
+    assert stats.groups[0].correction == ""
+    assert stats.choices.datasets == ["liquid_core"]
+    assert stats.points[0].molid == 21
+    assert dict(route.calls.last.request.url.params) == {
+        "property": "density",
+        "dataset": "liquid_core",
+        "include_points": "true",
+    }
+
+
+def test_condensed_phase_statistics_not_installed(api, client):
+    api.get("/statistics/condensed_phase").respond(
+        200, json={"available": False, "groups": [], "note": "not yet"}
+    )
+    stats = client.statistics.condensed_phase()
+    assert stats.available is False and stats.overall is None and stats.points is None
+
+
+def test_condensed_phase_statistics_bad_property(api, client):
+    api.get("/statistics/condensed_phase").respond(
+        400, json=problem("validation", 400), headers=PROBLEM_HEADERS
+    )
+    with pytest.raises(ATBError):
+        client.statistics.condensed_phase(property="nope")
+
+
+def test_functional_groups(api, client):
+    api.get("/functional_groups").respond(
+        200,
+        json={
+            "scheme_version": 3,
+            "annotated_compounds": {"ok": 10, "failed": 1},
+            "items": [
+                {
+                    "key": "amine_primary",
+                    "label": "Primary amine",
+                    "is_leaf": True,
+                    "parents": ["amine"],
+                    "ancestors": ["amine"],
+                    "leaves": ["amine_primary"],
+                    "smarts": "[NX3;H2]",
+                    "patterns": [{"smarts": "[NX3;H2]", "anchor": [0]}],
+                    "examples": {"CN": 1},
+                    "compounds": 7,
+                },
+                {"key": "amine", "label": "Amine", "is_leaf": False, "compounds": 9},
+            ],
+        },
+    )
+    vocabulary = client.functional_groups.list()
+    assert isinstance(vocabulary, FunctionalGroupVocabulary)
+    assert vocabulary.scheme_version == 3 and vocabulary.annotated_compounds["ok"] == 10
+    assert [g.key for g in vocabulary] == ["amine_primary", "amine"]
+    assert len(vocabulary) == 2
+    leaf = vocabulary.get("amine_primary")
+    assert leaf.patterns[0].anchor == [0] and leaf.examples == {"CN": 1} and leaf.compounds == 7
+    assert vocabulary.get("amine").smarts is None
+    assert vocabulary.get("zzz") is None
+
+
+def test_molecule_functional_groups_and_datasets(api, client):
+    api.get("/molecules/21").respond(
+        200,
+        json=molecule(21)
+        | {
+            "functional_groups": [{"key": "chloro", "label": "Chloro", "n": 2, "is_leaf": True}],
+            "functional_groups_status": "ok",
+            "datasets": [{"name": "solv_freesolv", "label": "FreeSolv", "kind": "benchmark"}],
+        },
+    )
+    mol = client.molecules.get(21)
+    assert mol.functional_groups[0].n == 2 and mol.functional_groups_status == "ok"
+    assert mol.datasets[0].kind == "benchmark"
+    assert mol.datasets[0].name == "solv_freesolv"
+
+
+def test_search_dataset_and_functional_group_filters(api, client):
+    route = api.get("/molecules").respond(200, json={"items": [], "next_cursor": None})
+    list(client.molecules.search(dataset="solv_freesolv", functional_group="chloro", min_count=2))
+    assert dict(route.calls.last.request.url.params) == {
+        "dataset": "solv_freesolv",
+        "functional_group": "chloro",
+        "min_count": "2",
+    }

@@ -55,6 +55,9 @@ __all__ = [
     "AdminUser",
     "AdminUserDetail",
     "Advice",
+    "AgreementGroup",
+    "AgreementPoint",
+    "AgreementStatistics",
     "ApiKey",
     "ArchetypeDetail",
     "ArchetypePage",
@@ -68,10 +71,15 @@ __all__ = [
     "Change",
     "CompoundConformer",
     "CompoundConformers",
+    "CondensedPhase",
+    "CondensedPhaseChoices",
+    "CondensedPhaseResult",
+    "CondensedPhaseStatistics",
     "Conformation",
     "Conformations",
     "ConformerDriver",
     "CurationResult",
+    "DatasetMembership",
     "DeletionRequestItem",
     "DeletionRequestPage",
     "DeletionRequestResult",
@@ -82,6 +90,10 @@ __all__ = [
     "FlagResult",
     "Forcefield",
     "ForcefieldList",
+    "FunctionalGroup",
+    "FunctionalGroupCount",
+    "FunctionalGroupPattern",
+    "FunctionalGroupVocabulary",
     "Health",
     "Indicator",
     "IndicatorSeries",
@@ -89,6 +101,9 @@ __all__ = [
     "KeyUsage",
     "LibraryVersions",
     "Limits",
+    "LiquidExperimentalValue",
+    "LiquidReference",
+    "LiquidReferenceSource",
     "Me",
     "Molecule",
     "MoleculeStatus",
@@ -217,6 +232,26 @@ class MoleculeStatus(_Model):
         return self.terminal or self.stage in TERMINAL_STAGES
 
 
+class FunctionalGroupCount(_Model):
+    """One functional group of a molecule's compound (``Molecule.functional_groups``):
+    ``n`` occurrences; a parent of the hierarchy (``is_leaf`` false) counts every
+    occurrence of its leaves."""
+
+    key: str
+    label: Optional[str] = None
+    n: Optional[int] = None
+    is_leaf: Optional[bool] = None
+
+
+class DatasetMembership(_Model):
+    """A dataset the molecule's compound is in (``Molecule.datasets``); ``kind`` is
+    ``benchmark``, ``provenance`` or ``campaign``, ``None`` for an unregistered name."""
+
+    name: str
+    label: Optional[str] = None
+    kind: Optional[str] = None
+
+
 class Molecule(_Bound):
     """A molecule (``GET /molecules/{molid}``, or an item of ``GET /molecules``).
 
@@ -262,6 +297,9 @@ class Molecule(_Bound):
     owner: Optional[str] = None
     owned_by_caller: Optional[bool] = None
     tags: List[str] = []
+    functional_groups: Optional[List[FunctionalGroupCount]] = None
+    functional_groups_status: Optional[str] = None
+    datasets: List[DatasetMembership] = []
     has_ti: Optional[bool] = None
     started_at: Optional[datetime] = None
     topology_generated_at: Optional[datetime] = None
@@ -1009,6 +1047,211 @@ class Statistics(_Model):
     indicators: List[Indicator] = []
     series: Optional[IndicatorSeries] = None
     validation_set: Optional[Dict[str, Any]] = None
+
+
+class FunctionalGroupPattern(_Model):
+    """One SMARTS pattern of a functional group (generated schema name ``Pattern``):
+    ``anchor`` lists the 0-based query atoms that define one occurrence."""
+
+    smarts: Optional[str] = None
+    anchor: List[int] = []
+
+
+class FunctionalGroup(_Model):
+    """One entry of the functional-group vocabulary. A leaf is matched on structures;
+    a parent (``is_leaf`` false) stands for its ``leaves``. ``compounds`` is the number
+    of annotated compounds that have it."""
+
+    key: str
+    label: Optional[str] = None
+    is_leaf: Optional[bool] = None
+    parents: List[str] = []
+    ancestors: List[str] = []
+    leaves: List[str] = []
+    smarts: Optional[str] = None
+    alternative_smarts: List[str] = []
+    examples: Dict[str, int] = {}
+    near_misses: List[str] = []
+    section: Optional[str] = None
+    patterns: List[FunctionalGroupPattern] = []
+    subsumed_by: List[str] = []
+    takes_precedence_over: List[str] = []
+    sssr_ring: Optional[bool] = None
+    with_exocyclic: Optional[bool] = None
+    compounds: Optional[int] = None
+
+
+class FunctionalGroupVocabulary(_Model):
+    """``GET /functional_groups``: every group (``items``, leaves first), the annotation
+    ``scheme_version`` and ``annotated_compounds`` by status (ok, unsupported, failed)."""
+
+    scheme_version: Optional[int] = None
+    annotated_compounds: Dict[str, int] = {}
+    items: List[FunctionalGroup] = []
+
+    def __iter__(self):  # type: ignore[override]
+        """Iterate the groups."""
+        return iter(self.items)
+
+    def __len__(self) -> int:
+        """Number of groups."""
+        return len(self.items)
+
+    def get(self, key: str) -> Optional[FunctionalGroup]:
+        """The group with this ``key``, or ``None``."""
+        return next((g for g in self.items if g.key == key), None)
+
+
+class LiquidReferenceSource(_Model):
+    """One source of a :class:`LiquidReference`."""
+
+    source: Optional[str] = None
+    doi: Optional[str] = None
+    value: Optional[float] = None
+    uncertainty: Optional[float] = None
+    locator: Optional[str] = None
+
+
+class LiquidReference(_Model):
+    """The experimental reference beside a simulated result: the mean over ``sources``
+    at the measured temperature closest to the simulation (within 5 K)."""
+
+    value: Optional[float] = None
+    uncertainty: Optional[float] = None
+    unit: Optional[str] = None
+    temperature_k: Optional[float] = None
+    n: Optional[int] = None
+    sources: List[LiquidReferenceSource] = []
+
+
+class CondensedPhaseResult(_Model):
+    """A neat-liquid simulation result (the latest per property, engine, protocol,
+    temperature and component). ``error`` is calculated minus experimental, in ``unit``."""
+
+    id: Optional[int] = None
+    property: Optional[str] = None
+    component: Optional[str] = None
+    correction: Optional[str] = None
+    correction_label: Optional[str] = None
+    campaign: Optional[str] = None
+    engine: Optional[str] = None
+    engine_version: Optional[str] = None
+    host: Optional[str] = None
+    protocol: Optional[str] = None
+    force_field: Optional[str] = None
+    value: Optional[float] = None
+    uncertainty: Optional[float] = None
+    unit: Optional[str] = None
+    temperature_k: Optional[float] = None
+    pressure_kpa: Optional[float] = None
+    n_molecules: Optional[int] = None
+    sampled_ns: Optional[float] = None
+    n_replicates: Optional[int] = None
+    completed_at: Optional[datetime] = None
+    topology_hash: Optional[str] = None
+    plot: Optional[str] = None
+    experimental: Optional[LiquidReference] = None
+    error: Optional[float] = None
+
+
+class LiquidExperimentalValue(_Model):
+    """An experimental neat-liquid value stored for a compound."""
+
+    id: Optional[int] = None
+    property: Optional[str] = None
+    component: Optional[str] = None
+    value: Optional[float] = None
+    uncertainty: Optional[float] = None
+    unit: Optional[str] = None
+    temperature_k: Optional[float] = None
+    pressure_kpa: Optional[float] = None
+    source: Optional[str] = None
+    doi: Optional[str] = None
+    locator: Optional[str] = None
+    note: Optional[str] = None
+
+
+class CondensedPhase(_Model):
+    """``GET /molecules/{molid}/condensed_phase``: simulated ``results`` beside their
+    experimental references, and every ``experimental`` value of the compound.
+    ``available`` is false (lists empty, ``note`` says why) while the server has no
+    condensed-phase tables."""
+
+    molid: Optional[int] = None
+    available: Optional[bool] = None
+    results: List[CondensedPhaseResult] = []
+    experimental: List[LiquidExperimentalValue] = []
+    note: Optional[str] = None
+
+
+class AgreementStatistics(_Model):
+    """Agreement of calculated with experimental values: MSE, AUE, RMSE, R², Kendall's
+    tau and the least-squares line (calculated on experimental), in the property unit."""
+
+    sample_size: Optional[int] = None
+    unique_compounds: Optional[int] = None
+    mean_signed_error: Optional[float] = None
+    average_unsigned_error: Optional[float] = None
+    root_mean_square_error: Optional[float] = None
+    r_squared: Optional[float] = None
+    kendall_tau: Optional[float] = None
+    slope: Optional[float] = None
+    intercept: Optional[float] = None
+
+
+class AgreementGroup(_Model):
+    """Agreement for one engine, protocol and correction."""
+
+    engine: Optional[str] = None
+    protocol: Optional[str] = None
+    correction: str = ""
+    statistics: Optional[AgreementStatistics] = None
+
+
+class AgreementPoint(_Model):
+    """One molecule's calculated value against its experimental reference."""
+
+    molid: Optional[int] = None
+    name: Optional[str] = None
+    engine: Optional[str] = None
+    protocol: Optional[str] = None
+    campaign: Optional[str] = None
+    correction: Optional[str] = None
+    correction_label: Optional[str] = None
+    temperature_k: Optional[float] = None
+    calculated: Optional[float] = None
+    calculated_uncertainty: Optional[float] = None
+    experimental: Optional[float] = None
+    experimental_uncertainty: Optional[float] = None
+
+
+class CondensedPhaseChoices(_Model):
+    """What the filters of ``statistics.condensed_phase`` can take."""
+
+    properties: List[str] = []
+    engines: List[str] = []
+    protocols: List[str] = []
+    campaigns: List[str] = []
+    datasets: List[str] = []
+
+
+class CondensedPhaseStatistics(_Model):
+    """``GET /statistics/condensed_phase``: agreement of simulated liquid properties
+    with experiment for one ``property``, ``overall`` and per engine/protocol
+    (``groups``); ``points`` only with ``include_points=True``."""
+
+    available: Optional[bool] = None
+    property: Optional[str] = None
+    unit: Optional[str] = None
+    engine: Optional[str] = None
+    protocol: Optional[str] = None
+    campaign: Optional[str] = None
+    dataset: Optional[str] = None
+    overall: Optional[AgreementStatistics] = None
+    groups: List[AgreementGroup] = []
+    choices: Optional[CondensedPhaseChoices] = None
+    points: Optional[List[AgreementPoint]] = None
+    note: Optional[str] = None
 
 
 class RMSDInput(_Model):

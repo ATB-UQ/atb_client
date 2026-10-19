@@ -18,6 +18,7 @@ from ..models import (
     BatchResult,
     BondedParameters,
     Change,
+    CondensedPhase,
     Conformations,
     Molecule,
     MoleculeStatus,
@@ -74,7 +75,10 @@ class Molecules(Resource):
         ``max_qm_level``, ``curation_trust``; ``min_atoms``, ``max_atoms``; booleans
         ``is_finished``, ``has_error``, ``has_ti``, ``public``; ``tag``; ``owner``
         (``"me"``, or a user id for admin/service keys); ``submitted_after`` (a
-        datetime). Lists are sent comma-separated, booleans as ``true``/``false``.
+        datetime); ``dataset`` (a dataset name, e.g. ``solv_freesolv``);
+        ``functional_group`` (comma-separated keys from ``functional_groups.list()``,
+        all required) with ``min_count`` (each must occur at least that often).
+        Lists are sent comma-separated, booleans as ``true``/``false``.
         ``fields`` narrows each item to the named summary fields (``molid`` always
         included). A partial match costs 10 quota units rather than 1. ``limit`` is at
         most 200 (1000 for admin and service keys). ``total`` is set only when the
@@ -388,6 +392,15 @@ class Molecules(Resource):
         """``GET /molecules/{molid}/solvation`` → :class:`Solvation`: TI and experimental
         solvation free energies (kJ/mol)."""
         return (yield from self._sub(Solvation, molid, "solvation"))
+
+    @operation
+    def condensed_phase(self, molid: int):
+        """``GET /molecules/{molid}/condensed_phase`` → :class:`CondensedPhase`: the
+        neat-liquid properties simulated with this molecule's topology (latest per
+        property, engine, protocol and temperature), each beside its experimental
+        reference, and the compound's experimental values. ``available`` is false while
+        the server has no condensed-phase tables."""
+        return (yield from self._sub(CondensedPhase, molid, "condensed_phase"))
 
     @operation
     def parameters(

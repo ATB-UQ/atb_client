@@ -28,10 +28,10 @@ __all__ = [
     "ATBError",
     "AuthenticationError",
     "ChemistryRejected",
+    "CompoundNotFound",
     "ConfigurationError",
     "Conflict",
     "DuplicateMolecule",
-    "CompoundNotFound",
     "GenerationRequired",
     "IdempotencyKeyReused",
     "JobFailed",
@@ -508,7 +508,6 @@ _BY_SLUG: Dict[str, Type[APIError]] = {
     "rotamer-job-not-found": RotamerJobNotFound,
     "compound-not-found": CompoundNotFound,
     "idempotency-key-reused": IdempotencyKeyReused,
-    "schema-missing": ServiceUnavailable,
 }
 
 _BY_STATUS: Dict[int, Type[APIError]] = {

@@ -20,8 +20,14 @@ from .resources.jobs import Jobs
 from .resources.me import Me
 from .resources.molecules import Molecules
 from .resources.pipeline import Pipeline
+from .resources.reference import (
+    Dihedrals,
+    FunctionalGroups,
+    Parameters,
+    SiteStatistics,
+    TautomerGroups,
+)
 from .resources.rotamer_jobs import RotamerJobs
-from .resources.reference import Dihedrals, Parameters, SiteStatistics, TautomerGroups
 from .resources.structures import Structures
 
 TimeoutTypes = Union[None, float, int, httpx.Timeout]
@@ -95,6 +101,7 @@ class _ClientBase:
         self.dihedrals = Dihedrals(self)
         self.tautomers = TautomerGroups(self)
         self.statistics = SiteStatistics(self)
+        self.functional_groups = FunctionalGroups(self)
         self.admin = Admin(self)
         self.pipeline = Pipeline(self)
 
