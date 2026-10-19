@@ -26,6 +26,7 @@ open to every `read` key through `client.rotamer_jobs` and `client.compounds`.
 job = atb.admin.rotamer_jobs.create(compound_id=7, submission_budget=20, dry_run=True)
 job = atb.rotamer_jobs.wait(job.id, until="complete")     # raises RotamerJobFailed
 atb.admin.rotamer_jobs.create(compound_id=7, force=True)  # another job for a finished one
+atb.admin.rotamer_jobs.create(compound_id=7, window_kj=30, select_window_kj=10)  # select from the lowest 10 kJ/mol only
 atb.admin.rotamer_jobs.cancel(job.id)                     # 202; the state follows shortly
 ```
 

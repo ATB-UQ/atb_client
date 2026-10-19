@@ -3194,6 +3194,13 @@ class CompoundId(RootModel[int]):
     """
 
 
+class SelectWindowKj(RootModel[float]):
+    root: Annotated[float, Field(gt=0.0, title='Select Window Kj')]
+    """
+    Optional narrower window for selection: only minima within this many kJ/mol (GFN2-xTB, ALPB water) of the lowest are selected for submission, while the search still keeps everything within `window_kj`. Must be greater than 0 and at most `window_kj`. null (the default) selects from the whole window.
+    """
+
+
 class MaxQmLevel2(RootModel[int]):
     root: Annotated[int, Field(ge=0, le=2, title='Max Qm Level')]
     """
@@ -3236,6 +3243,12 @@ class RotamerJobRequest(BaseModel):
     ] = 25.0
     """
     Minima within this many kJ/mol (GFN2-xTB, ALPB water) of the lowest are kept.
+    """
+    select_window_kj: Annotated[
+        Optional[SelectWindowKj], Field(title='Select Window Kj')
+    ] = None
+    """
+    Optional narrower window for selection: only minima within this many kJ/mol (GFN2-xTB, ALPB water) of the lowest are selected for submission, while the search still keeps everything within `window_kj`. Must be greater than 0 and at most `window_kj`. null (the default) selects from the whole window.
     """
     max_qm_level: Annotated[Optional[MaxQmLevel2], Field(title='Max Qm Level')] = None
     """

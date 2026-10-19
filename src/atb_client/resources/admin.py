@@ -299,6 +299,7 @@ class AdminRotamerJobs(Resource):
         seed_budget: int = 500,
         seed_source: str = "rotor",
         window_kj: float = 25.0,
+        select_window_kj: Optional[float] = None,
         max_qm_level: Optional[int] = None,
         public: Optional[bool] = None,
         dry_run: bool = False,
@@ -311,7 +312,9 @@ class AdminRotamerJobs(Resource):
         Give exactly one of ``molid`` and ``compound_id`` (``compound_id`` searches the
         compound's best public molecule). ``seed_source`` is ``rotor``, ``etkdg`` or
         ``union``; ``window_kj`` keeps minima within that many kJ/mol of the lowest.
-        ``max_qm_level`` and ``public`` default to the searched molecule's own
+        ``select_window_kj`` (optional, > 0 and <= ``window_kj``; sent only when given)
+        selects for submission only minima within that narrower window. ``max_qm_level``
+        and ``public`` default to the searched molecule's own
         (``public=True`` on a private molecule is refused). ``dry_run`` searches, selects
         and checks each selection against the ATB but submits nothing.
 
@@ -326,7 +329,11 @@ class AdminRotamerJobs(Resource):
             "dry_run": dry_run,
             "force": force,
             **_drop_none(
-                molid=molid, compound_id=compound_id, max_qm_level=max_qm_level, public=public
+                molid=molid,
+                compound_id=compound_id,
+                select_window_kj=select_window_kj,
+                max_qm_level=max_qm_level,
+                public=public,
             ),
         }
         response = yield from request(self._client, "POST", "admin/rotamer-jobs", json=body)

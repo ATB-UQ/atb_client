@@ -276,7 +276,7 @@ server-side, reads included. `client.admin.molecules.update(molid,
 max_qm_level=...)` is the one call a `pipeline:write` service key may also make —
 every other admin field, and every other admin call, needs `admin`.
 `client.admin.rotamer_jobs.create(molid=… | compound_id=…, submission_budget=20,
-seed_budget=500, seed_source="rotor", window_kj=25.0, dry_run=False, force=False)` queues a
+seed_budget=500, seed_source="rotor", window_kj=25.0, select_window_kj=None, dry_run=False, force=False)` queues a
 rotamer search and `.cancel(job_id)` stops one (cluster time, hence admin);
 `RotamerJobExists` names a compound's existing job.
 

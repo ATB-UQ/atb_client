@@ -392,6 +392,7 @@ def cmd_admin_rotamer_create(atb: ATBClient, args: argparse.Namespace) -> int:
         seed_budget=args.seed_budget,
         seed_source=args.seed_source,
         window_kj=args.window_kj,
+        select_window_kj=args.select_window_kj,
         max_qm_level=args.max_qm_level,
         public=args.public,
         dry_run=args.dry_run,
@@ -667,6 +668,12 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--seed-budget", type=int, default=500, dest="seed_budget")
     p.add_argument("--seed-source", choices=["rotor", "etkdg", "union"], default="rotor")
     p.add_argument("--window-kj", type=float, default=25.0, dest="window_kj")
+    p.add_argument(
+        "--select-window-kj",
+        type=float,
+        dest="select_window_kj",
+        help="select only minima within this many kJ/mol (<= --window-kj)",
+    )
     p.add_argument("--max-qm-level", type=int, dest="max_qm_level")
     vis = p.add_mutually_exclusive_group()
     vis.add_argument("--public", dest="public", action="store_true", default=None)

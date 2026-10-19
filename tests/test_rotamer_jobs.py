@@ -112,7 +112,7 @@ def test_admin_create_sends_the_documented_body(api, client):
         "window_kj": 25.0,
         "dry_run": False,
         "force": False,
-    }
+    }  # select_window_kj is absent unless given
     assert result.conformers[0].driver.attempts == 1
     assert result.search.model_extra == {"new_key": 1}  # a field added later passes through
 
@@ -125,13 +125,14 @@ def test_admin_create_by_compound_with_every_option(api, client):
         seed_budget=100,
         seed_source="union",
         window_kj=10,
+        select_window_kj=5,
         max_qm_level=1,
         public=False,
         dry_run=True,
         force=True,
     )
     body = json.loads(route.calls[0].request.content)
-    assert body["compound_id"] == 7 and "molid" not in body
+    assert body["compound_id"] == 7 and "molid" not in body and body["select_window_kj"] == 5
     assert body["public"] is False and body["max_qm_level"] == 1 and body["dry_run"] is True
 
 
@@ -458,6 +459,14 @@ def test_cli_admin_create(env, capsys):
     body = json.loads(route.calls[0].request.content)
     assert body["molid"] == 21 and body["dry_run"] is True and body["public"] is False
     assert out_json(capsys)["id"] == 3
+    assert "select_window_kj" not in body
+
+
+def test_cli_admin_create_select_window(env, capsys):
+    route = env.post("/admin/rotamer-jobs").respond(201, json=job(state="queued"))
+    args = ["admin", "rotamer-jobs", "create", "--molid", "21", "--select-window-kj", "8.5"]
+    assert main(args) == 0
+    assert json.loads(route.calls[0].request.content)["select_window_kj"] == 8.5
 
 
 def test_cli_admin_create_needs_exactly_one_target(env, capsys):

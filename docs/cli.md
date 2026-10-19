@@ -22,7 +22,7 @@ appear before or after the subcommand.
 | `atb admin users [Q] [--limit N] [--all]` | list accounts (needs `admin` scope) |
 | `atb admin molecule MOLID [--max-qm-level N] [--curation-trust N] [--tag-add T] [--tag-remove T]` | curate one molecule |
 | `atb admin stalled [--scan N] [--all]` | molecules no QM driver will pick up |
-| `atb admin rotamer-jobs create (--molid N \| --compound-id N) [--submission-budget N] [--seed-budget N] [--seed-source rotor\|etkdg\|union] [--window-kj X] [--max-qm-level N] [--public\|--private] [--dry-run] [--force]` | queue a rotamer search (needs `admin` scope) |
+| `atb admin rotamer-jobs create (--molid N \| --compound-id N) [--submission-budget N] [--seed-budget N] [--seed-source rotor\|etkdg\|union] [--window-kj X] [--select-window-kj X] [--max-qm-level N] [--public\|--private] [--dry-run] [--force]` | queue a rotamer search (needs `admin` scope) |
 | `atb admin rotamer-jobs cancel JOB_ID` | ask a rotamer job to stop (needs `admin` scope) |
 | `atb rotamer-jobs list [--molid N] [--compound-id N] [--state S] [--limit N] [--offset N] [--all]` | rotamer jobs, newest first |
 | `atb rotamer-jobs get JOB_ID [--wait submitted\|complete] [--wait-timeout S]` | one rotamer job in full; with `--wait`, exit 4 on timeout and 5 if it failed or was cancelled |
