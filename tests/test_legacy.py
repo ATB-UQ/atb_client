@@ -147,3 +147,79 @@ def test_internal_token_header(api):
     legacy.Molecules.molid(molid=21)
     assert route.calls.last.request.headers["X-ATB-Internal-Token"] == "internal"
     assert isinstance(route.calls.last.response, httpx.Response)
+
+
+# --- v0.1 search keywords, tag, generate_mol_data, download_file(ifp=) (D2, 2026-10) ---
+
+
+@pytest.mark.parametrize(
+    "v01, v1",
+    [
+        ({"InChI": "InChI=1S/x"}, {"inchi": "InChI=1S/x"}),
+        ({"inchi": "i"}, {"inchi": "i"}),
+        ({"pdb_hetId": "EOH"}, {"pdb_hetid": "EOH"}),
+        ({"maximum_qm_level": "0,1"}, {"max_qm_level": [0, 1]}),
+        ({"qm_level": "2"}, {"qm_level": [2]}),
+        ({"curation_trust": [0, 1]}, {"curation_trust": [0, 1]}),
+        ({"has_TI": True}, {"has_ti": True}),
+        ({"any": "ethanol"}, {"q": "ethanol"}),
+        ({"tag": "alcohol", "max_atoms": 20}, {"tag": "alcohol", "max_atoms": 20}),
+    ],
+)
+def test_search_filters_to_v1(v01, v1):
+    from atb_client.legacy import search_filters_to_v1
+
+    assert search_filters_to_v1(v01) == v1
+
+
+@pytest.mark.parametrize("bad", [{"has_pdb_hetId": True}, {"has_chembl_id": True}])
+def test_search_unsupported_filter_raises(bad):
+    from atb_client.legacy import search_filters_to_v1
+
+    with pytest.raises(ValueError):
+        search_filters_to_v1(bad)
+
+
+def test_search_translates_on_the_wire(api, legacy_api):
+    route = api.get("/molecules").respond(200, json={"items": [molecule(1), molecule(2)]})
+    found = legacy_api.Molecules.search(
+        InChI="InChI=1S/x", maximum_qm_level="2", page=1, order="asc", limit=1, return_type="molids"
+    )
+    assert found == [1]
+    assert dict(route.calls.last.request.url.params) == {"inchi": "InChI=1S/x", "max_qm_level": "2"}
+
+
+def test_atb_mol_tag_patches_admin(api, legacy_api):
+    import json
+
+    api.get("/molecules/21").respond(200, json=molecule(21))
+    route = api.patch("/admin/molecules/21").respond(
+        200, json={"molid": 21, "max_qm_level": None, "tags": ["alcohol"]}
+    )
+    mol = legacy_api.Molecules.molid(molid=21)
+    assert mol.tag(tag_name="alcohol", compound_id=5) is True
+    assert json.loads(route.calls.last.request.content) == {"tags": {"add": ["alcohol"], "remove": []}}
+    with pytest.raises(ValueError):
+        legacy_api.Molecules.tag(molid=21)
+
+
+def test_generate_mol_data_force_goes_to_admin_regenerate(api, legacy_api):
+    route = api.post("/molecules/21/topologies").respond(200, json={"ok": True})
+    assert legacy_api.Molecules.generate_mol_data(molid=21, force_regen=True) is True
+    assert route.called
+
+
+def test_generate_mol_data_default_goes_to_pipeline(api, legacy_api):
+    route = api.post("/pipeline/molecules/21/topology:generate").respond(200, json={"ok": True})
+    assert legacy_api.Molecules.generate_mol_data(molid=21) is True
+    assert route.called
+
+
+def test_download_file_ifp_gxx_and_rules(api, legacy_api, tmp_path):
+    route = api.get("/forcefields/54A7/ifp").respond(200, content=b"IFP TEXT\n")
+    assert legacy_api.Molecules.download_file(format="GXX", ifp="54A7") == "IFP TEXT\n"
+    assert dict(route.calls.last.request.url.params) == {"format": "gxx"}
+    out = tmp_path / "x.ifp"
+    assert legacy_api.Molecules.download_file(format="GXX", ifp="54A7", rules="True", fnme=str(out)) is None
+    assert out.read_text() == "IFP TEXT\n"
+    assert dict(route.calls.last.request.url.params) == {"format": "gxx", "rules": "true"}

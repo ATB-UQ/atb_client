@@ -31,7 +31,7 @@ from typing import Any, Dict, Iterable, List, Optional, Union
 from ._client import ATBClient
 from .models import Molecule
 
-__all__ = ["API", "ATB_FORMAT_TO_V1", "ATB_Mol", "v1_file_name"]
+__all__ = ["API", "ATB_FORMAT_TO_V1", "ATB_Mol", "search_filters_to_v1", "v1_file_name"]
 
 ATB_MOLID = Union[str, int]
 
@@ -94,6 +94,16 @@ class ATB_Mol:
         kwargs.pop("molid", None)
         return self.api.Molecules.download_file(molid=self.molid, **kwargs)
 
+    def generate_mol_data(self, **kwargs: Any) -> bool:
+        """``Molecules.generate_mol_data`` for this molecule."""
+        kwargs.pop("molid", None)
+        return self.api.Molecules.generate_mol_data(molid=self.molid, **kwargs)
+
+    def tag(self, **kwargs: Any) -> bool:
+        """Add ``tag_name=`` to this molecule's compound (v0.1 ``molecule_tags`` set)."""
+        kwargs.pop("compound_id", None)
+        return self.api.Molecules.tag(molid=self.molid, **kwargs)
+
     def __repr__(self) -> str:
         fields = {k: v for k, v in self.__dict__.items() if k != "api"}
         return json.dumps(fields, indent=2, default=str)
@@ -116,18 +126,66 @@ class _Namespace:
         return self.api.client
 
 
+#: v0.1 ``molecules/search`` parameter → v1 ``GET /molecules`` filter. Names the two
+#: share (``inchi_key``, ``smiles``, ``common_name``, ``formula``, ``iupac``, ``rnme``,
+#: ``qm_level``, ``curation_trust``, ``min_atoms``, ``max_atoms``, ``tag``,
+#: ``is_finished``, ``moltype``, ``user_label``, ``chembl_id``) pass through.
+#: Lookup is case-insensitive, so the response field name ``InChI=`` also works.
+SEARCH_PARAM_TO_V1: Dict[str, str] = {
+    "inchi": "inchi",
+    "pdb_hetid": "pdb_hetid",
+    "maximum_qm_level": "max_qm_level",
+    "has_ti": "has_ti",
+    "any": "q",
+}
+#: v0.1 parameters that shaped the single page v0.1 returned; v1 paging replaces them.
+_SEARCH_PAGING = ("page", "order", "order_by", "group_by")
+#: v0.1 parameters with no v1 filter.
+_SEARCH_UNSUPPORTED = ("has_pdb_hetid", "has_chembl_id")
+#: v0.1 sent lists as comma-separated strings; v1 takes lists (the client joins them).
+_SEARCH_LISTS = ("qm_level", "maximum_qm_level", "curation_trust")
+
+
+def search_filters_to_v1(kwargs: Dict[str, Any]) -> Dict[str, Any]:
+    """Translate v0.1 ``Molecules.search`` keywords into v1 ``molecules.search`` filters.
+
+    Raises :class:`ValueError` for a v0.1 filter v1 does not have, rather than
+    silently widening the search."""
+    out: Dict[str, Any] = {}
+    for key, value in kwargs.items():
+        lower = key.lower()
+        if lower in _SEARCH_UNSUPPORTED:
+            raise ValueError(f"v0.1 search parameter {key!r} has no API v1 filter")
+        v1_key = SEARCH_PARAM_TO_V1.get(lower, lower)
+        if lower in _SEARCH_LISTS and isinstance(value, str):
+            value = [int(v) for v in value.split(",") if v.strip()]
+        if v1_key in out:
+            raise ValueError(f"search parameters {key!r} and another both mean {v1_key!r}")
+        out[v1_key] = value
+    return out
+
+
 class Molecules(_Namespace):
     """``atb_api``'s ``Molecules`` namespace, on top of v1."""
 
     def search(self, **kwargs: Any) -> Any:
-        """``GET /molecules`` over every page. ``return_type='molids'`` returns ints."""
+        """``GET /molecules`` over every page. ``return_type='molids'`` returns ints.
+
+        v0.1 keywords are translated by :func:`search_filters_to_v1` (``InChI=`` /
+        ``inchi=`` -> ``inchi``, ``maximum_qm_level`` -> ``max_qm_level``, ``any`` -> ``q``,
+        comma-string lists -> lists); ``page``/``order``/``order_by``/``group_by`` are
+        ignored and ``limit`` caps the number returned."""
         return_type = kwargs.pop("return_type", "molecules")
         match_partial = kwargs.pop("match_partial", None)
-        for dropped in ("api_format", "api_token"):
+        limit = kwargs.pop("limit", None)
+        for dropped in ("api_format", "api_token", *_SEARCH_PAGING):
             kwargs.pop(dropped, None)
+        kwargs = search_filters_to_v1(kwargs)
         if match_partial:
             kwargs["match"] = "partial"
         molecules = list(self._v1.molecules.search(**kwargs).all())
+        if limit is not None:
+            molecules = molecules[: int(limit)]
         if return_type == "molids":
             return [m.molid for m in molecules]
         if return_type == "molecules":
@@ -156,7 +214,12 @@ class Molecules(_Namespace):
 
     def download_file(self, **kwargs: Any) -> Optional[str]:
         """``atb_format=`` (or v0.1 ``file=``) of ``molid=``; written to ``fnme=`` (returns
-        ``None``) or returned as text. ``ffVersion`` maps to v1's ``ff``."""
+        ``None``) or returned as text. ``ffVersion`` maps to v1's ``ff``.
+
+        ``ifp=<ff>`` (v0.1 ``format="GXX"``/``"G96"``, ``rules="True"``) fetches the
+        force field's IFP (or rules) file from ``GET /forcefields/{ff}/ifp`` instead."""
+        if "ifp" in kwargs:
+            return self._download_ifp(kwargs)
         if "molid" not in kwargs:
             raise ValueError("download_file needs molid=")
         name = kwargs.get("atb_format") or kwargs.get("file")
@@ -178,6 +241,53 @@ class Molecules(_Namespace):
                 fh.write(data)
             return None
         return data.decode("utf-8")
+
+    def _download_ifp(self, kwargs: Dict[str, Any]) -> Optional[str]:
+        """``download_file(ifp=, format=, rules=, fnme=)``."""
+        fmt = kwargs.get("format")
+        rules = kwargs.get("rules", False)
+        if isinstance(rules, str):
+            rules = rules.lower() in ("1", "true", "yes")
+        text = self._v1.forcefields.ifp(
+            str(kwargs["ifp"]),
+            format=str(fmt).lower() if fmt else None,
+            rules=bool(rules),
+            ifp_hash=kwargs.get("hash"),
+        )
+        fnme = kwargs.get("fnme")
+        if fnme:
+            with open(str(fnme), "w") as fh:
+                fh.write(text)
+            return None
+        return text
+
+    def generate_mol_data(self, **kwargs: Any) -> bool:
+        """Build ``molid=``'s topologies. ``force_regen=True`` -> ``admin.molecules.regenerate``
+        (``POST /molecules/{molid}/topologies``, admin); otherwise
+        ``pipeline.molecules.generate_topology`` (``pipeline:write``), which builds only
+        where the cache says it must. Returns ``True``; ``raise_for_deleted_molecules`` and
+        ``hash`` have no v1 meaning and are ignored."""
+        if "molid" not in kwargs:
+            raise ValueError("generate_mol_data needs molid=")
+        force = kwargs.get("force_regen", False)
+        if isinstance(force, str):
+            force = force.lower() in ("1", "true", "yes")
+        molid = int(kwargs["molid"])
+        if force:
+            self._v1.admin.molecules.regenerate(molid)
+        else:
+            self._v1.pipeline.molecules.generate_topology(molid)
+        return True
+
+    def tag(self, **kwargs: Any) -> bool:
+        """Add ``tag_name=`` to the compound of ``molid=`` (``PATCH /admin/molecules/{molid}``
+        ``tags.add``). v0.1 addressed the tag by ``compound_id``; v1 by any of its
+        molecules, so ``molid=`` is required (``ATB_Mol.tag`` supplies it)."""
+        for required in ("molid", "tag_name"):
+            if required not in kwargs:
+                raise ValueError(f"tag needs {required}= (v1 tags by molid)")
+        self._v1.admin.molecules.update(int(kwargs["molid"]), tags_add=[str(kwargs["tag_name"])])
+        return True
 
     def structure_search(self, method: str = "POST", **kwargs: Any) -> Dict[str, Any]:
         """``POST /structures/search``; returns ``{"matches": [...]}``."""
