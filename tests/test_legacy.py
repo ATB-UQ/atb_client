@@ -198,7 +198,9 @@ def test_atb_mol_tag_patches_admin(api, legacy_api):
     )
     mol = legacy_api.Molecules.molid(molid=21)
     assert mol.tag(tag_name="alcohol", compound_id=5) is True
-    assert json.loads(route.calls.last.request.content) == {"tags": {"add": ["alcohol"], "remove": []}}
+    assert json.loads(route.calls.last.request.content) == {
+        "tags": {"add": ["alcohol"], "remove": []}
+    }
     with pytest.raises(ValueError):
         legacy_api.Molecules.tag(molid=21)
 
@@ -220,6 +222,9 @@ def test_download_file_ifp_gxx_and_rules(api, legacy_api, tmp_path):
     assert legacy_api.Molecules.download_file(format="GXX", ifp="54A7") == "IFP TEXT\n"
     assert dict(route.calls.last.request.url.params) == {"format": "gxx"}
     out = tmp_path / "x.ifp"
-    assert legacy_api.Molecules.download_file(format="GXX", ifp="54A7", rules="True", fnme=str(out)) is None
+    assert (
+        legacy_api.Molecules.download_file(format="GXX", ifp="54A7", rules="True", fnme=str(out))
+        is None
+    )
     assert out.read_text() == "IFP TEXT\n"
     assert dict(route.calls.last.request.url.params) == {"format": "gxx", "rules": "true"}
