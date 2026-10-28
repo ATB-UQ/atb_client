@@ -73,7 +73,15 @@ for molid, status in atb.molecules.wait_all(batch.molids, timeout=24 * 3600):
 mol.files.download("itp_aa", "lig.itp", timeout=300)   # hides the 202/job dance
 atb.bundles.download(molids=[21, 22], names=["itp_aa", "pdb_aa_opt"], into="ligs/")
 atb.forcefields.ifp("54A7", format="gxx", path="54A7.ifp")
+atb.forcefields.ifp("54A7", format="gxx", version=2, path="54A7_v2.ifp")   # one version of the set
 ```
+
+Once the server serves the ATB parameter library (the bonded cutover), each force field is a
+versioned parameter set: `forcefields.list()` gives its `parameter_set`, `versions` and
+`head_version`, `ifp(..., version=N)` fetches that version (default the newest), and GXX is the
+only IFP format and the default. `format="g96"` and `rules=True` then raise `atb_client.Retired`
+(410). Until then the server's default format is G96 and `version=` raises `NotFound`; passing
+`format="gxx"` explicitly works against both.
 
 File names follow one vocabulary: `<format>_<atoms>[_<geometry>]` — `itp_aa`, `mtb_ua`,
 `pdb_aa_opt`, `pdb_ua_unopt`, `g96_aa_opt`, `top_aa`, `lgf`, plus `qm0_log`, `qm1_log`,

@@ -261,12 +261,12 @@ IMPLEMENTED: Dict[str, Tuple[Call, str]] = {
     "structures.rmsd": (lambda c: c.structures.rmsd(molids=[21, 22]), "structures_rmsd"),
     "forcefields.list": (lambda c: c.forcefields.list(), "forcefields_list"),
     "forcefields.ifp": (
-        lambda c: c.forcefields.ifp("54A7", format="gxx", rules=True, ifp_hash="d41d8"),
+        lambda c: c.forcefields.ifp("54A7", format="gxx", rules=True, version=2, ifp_hash="d41d8"),
         "forcefields_ifp",
     ),
     "forcefields.mtb": (lambda c: c.forcefields.mtb("54A7", format="gxx"), "forcefields_mtb"),
     "forcefields.lammps": (
-        lambda c: c.forcefields.lammps("54A7", ifp_hash="d41d8"),
+        lambda c: c.forcefields.lammps("54A7", version=2, ifp_hash="d41d8"),
         "forcefields_lammps",
     ),
     "parameters.versions": (lambda c: c.parameters.versions(), "parameters_versions_list"),

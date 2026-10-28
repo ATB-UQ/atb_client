@@ -228,3 +228,13 @@ def test_download_file_ifp_gxx_and_rules(api, legacy_api, tmp_path):
     )
     assert out.read_text() == "IFP TEXT\n"
     assert dict(route.calls.last.request.url.params) == {"format": "gxx", "rules": "true"}
+
+
+def test_download_file_ifp_version_and_default_format(api, legacy_api):
+    # The format is left to the server (G96 from a database server, GXX from one that
+    # serves the parameter library); version= reaches v1 as is.
+    route = api.get("/forcefields/54A7/ifp").respond(200, content=b"IFP TEXT\n")
+    assert legacy_api.Molecules.download_file(ifp="54A7", version="2") == "IFP TEXT\n"
+    assert dict(route.calls.last.request.url.params) == {"version": "2"}
+    legacy_api.Molecules.download_file(ifp="54A7", format="GXX", ifp_hash="a" * 32)
+    assert dict(route.calls.last.request.url.params) == {"format": "gxx", "ifp_hash": "a" * 32}

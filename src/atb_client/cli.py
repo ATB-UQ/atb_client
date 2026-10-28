@@ -288,7 +288,9 @@ def cmd_search(atb: ATBClient, args: argparse.Namespace) -> int:
 
 def cmd_ifp(atb: ATBClient, args: argparse.Namespace) -> int:
     """``atb ifp FF``: a force field's interaction parameter file."""
-    result = atb.forcefields.ifp(args.ff, format=args.format, path=args.output)
+    result = atb.forcefields.ifp(
+        args.ff, format=args.format, version=args.set_version, path=args.output
+    )
     if args.output:
         _emit(args, {"path": str(result)})
     else:
@@ -582,7 +584,17 @@ def build_parser() -> argparse.ArgumentParser:
 
     p = add("ifp", cmd_ifp, "a force field's interaction parameter file")
     p.add_argument("ff", help="e.g. 54A7")
-    p.add_argument("--format", choices=["gxx", "g96"], help="default: the server's (g96)")
+    p.add_argument(
+        "--format",
+        choices=["gxx", "g96"],
+        help="default: the server's (g96, then gxx once it serves the parameter library)",
+    )
+    p.add_argument(
+        "--set-version",
+        type=int,
+        metavar="N",
+        help="a version of the parameter set (default: its newest)",
+    )
     p.add_argument("-o", "--output", help="write here instead of stdout")
 
     keys = sub.add_parser("keys", help="manage your API keys", parents=[common])

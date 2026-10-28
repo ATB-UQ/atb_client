@@ -45,6 +45,7 @@ __all__ = [
     "PermissionDenied",
     "RateLimited",
     "RemapRefused",
+    "Retired",
     "RotamerJobExists",
     "RotamerJobFailed",
     "RotamerJobNotFound",
@@ -275,6 +276,12 @@ class TopologyVersionGone(APIError):
     """410 — the pinned ``hash`` is no longer cached; historical topologies cannot be rebuilt."""
 
 
+class Retired(APIError):
+    """410 ``format-retired`` / ``rules-retired`` -- a download the server no longer offers:
+    the GROMOS96 (``g96``) IFP and MTB and the rules file, since it serves the ATB parameter
+    library (2026-10). Ask for ``format="gxx"``, optionally with a ``version``."""
+
+
 class ChemistryRejected(APIError):
     """422 — the structure was refused on chemical grounds (charge/multiplicity, InChI, ...)."""
 
@@ -470,6 +477,8 @@ _BY_SLUG: Dict[str, Type[APIError]] = {
     "force-regen-forbidden": PermissionDenied,
     "file-name-unknown": NotFound,
     "forcefield-not-found": NotFound,
+    "format-retired": Retired,
+    "rules-retired": Retired,
     "ifp-version-not-found": NotFound,
     "archetype-not-found": NotFound,
     "build-not-found": NotFound,

@@ -167,6 +167,12 @@ def test_ifp_to_stdout(env, capsys):
     assert capsys.readouterr().out == "TITLE\n"
 
 
+def test_ifp_set_version(env, capsys):
+    route = env.get("/forcefields/54A7/ifp").respond(200, content=b"TITLE\n")
+    assert main(["ifp", "54A7", "--format", "gxx", "--set-version", "2"]) == 0
+    assert dict(route.calls.last.request.url.params) == {"format": "gxx", "version": "2"}
+
+
 def test_keys_and_usage(env, capsys):
     route = env.post("/me/keys").respond(
         201,

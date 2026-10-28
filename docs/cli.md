@@ -14,7 +14,7 @@ appear before or after the subcommand.
 | `atb remap MOLID FILE [--format FMT] [--mode MODE] [--names query\|reference] [--coords query\|reference] [--outputs ...] [--united] [-o PATH]` | this molecule's outputs in your structure's atom order |
 | `atb bundle NAMES... [--molids IDS \| --molids-from FILE] [-o DIR]` | download files of many molecules as one bundle |
 | `atb search [--inchi-key K] [--inchi I] [--smiles S] [--common-name N] [--formula F] [--q TEXT] [--filter KEY=VALUE] [--limit N] [--all]` | search molecules |
-| `atb ifp FF [--format gxx\|g96] [-o FILE]` | a force field's interaction parameter file |
+| `atb ifp FF [--format gxx\|g96] [--set-version N] [-o FILE]` | a force field's interaction parameter file (`g96` is retired once the server serves the parameter library) |
 | `atb keys create [--name N] [--scopes S,S] [--expires N[d]]` | mint an API key (shown once) |
 | `atb keys list` | list your API keys |
 | `atb keys revoke ID` | revoke an API key |

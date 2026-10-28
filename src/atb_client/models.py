@@ -892,6 +892,11 @@ class Forcefield(_Model):
     mtb_formats: List[str] = []
     available: Optional[bool] = None
     default: Optional[bool] = None
+    parameter_set: Optional[str] = None
+    """The parameter set the IFP is rendered from (``54A7-ATB``); None from a server
+    that still reads its database."""
+    head_version: Optional[int] = None
+    versions: Optional[List[int]] = None
     links: Optional[Dict[str, Any]] = None
 
 

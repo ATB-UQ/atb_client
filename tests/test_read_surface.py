@@ -8,7 +8,7 @@ from datetime import date, datetime, timezone
 
 import pytest
 
-from atb_client import ATBError, MoleculeNotFound, NotFound
+from atb_client import ATBError, MoleculeNotFound, NotFound, Retired
 from atb_client.models import (
     ArchetypeDetail,
     ArchetypePage,
@@ -252,6 +252,57 @@ def test_forcefields_list(api, client):
     assert isinstance(forcefields, ForcefieldList)
     assert forcefields.default_forcefield == "54A7"
     assert [f.name for f in forcefields] == ["54A7"]
+
+
+def test_forcefields_list_from_a_library_server(api, client):
+    api.get("/forcefields").respond(
+        200,
+        json={
+            "items": [
+                {
+                    "name": "54A7",
+                    "ifp_formats": ["gxx"],
+                    "mtb_formats": ["gxx"],
+                    "available": True,
+                    "default": True,
+                    "parameter_set": "54A7-ATB",
+                    "head_version": 3,
+                    "versions": [1, 2, 3],
+                    "links": {"ifp": {"gxx": "/api/v1/forcefields/54A7/ifp?format=gxx"}, "mtb": {}},
+                }
+            ],
+            "total": 1,
+            "default_forcefield": "54A7",
+        },
+    )
+    (ff,) = list(client.forcefields.list())
+    assert (ff.parameter_set, ff.head_version, ff.versions) == ("54A7-ATB", 3, [1, 2, 3])
+
+
+def test_forcefield_ifp_by_version(api, client):
+    route = api.get("/forcefields/54A7/ifp").respond(200, content=b"TITLE\n")
+    assert client.forcefields.ifp("54A7", format="gxx", version=2) == "TITLE\n"
+    assert dict(route.calls.last.request.url.params) == {"format": "gxx", "version": "2"}
+    route = api.get("/forcefields/54A7/lammps").respond(200, content=b"LT\n")
+    assert client.forcefields.lammps("54A7", version=1) == "LT\n"
+    assert dict(route.calls.last.request.url.params) == {"version": "1"}
+
+
+@pytest.mark.parametrize(
+    "slug, call",
+    [
+        ("format-retired", lambda c: c.forcefields.ifp("54A7", format="g96")),
+        ("format-retired", lambda c: c.forcefields.mtb("54A7", format="g96")),
+        ("rules-retired", lambda c: c.forcefields.ifp("54A7", rules=True)),
+    ],
+)
+def test_retired_forcefield_downloads(api, client, slug, call):
+    api.get(url__regex=r".*/forcefields/54A7/(ifp|mtb).*").respond(
+        410, json=problem(slug, 410), headers=PROBLEM_HEADERS
+    )
+    with pytest.raises(Retired) as raised:
+        call(client)
+    assert raised.value.status == 410 and raised.value.slug == slug
 
 
 def test_forcefield_not_found(api, client):

@@ -1452,7 +1452,7 @@ class ForcefieldLinks(BaseModel):
     )
     ifp: Annotated[Dict[str, str], Field(title='Ifp')]
     """
-    Download path of the IFP per format (`g96`, `gxx`).
+    Download path of the IFP per format (`gxx`; `g96` only while the server reads its database).
     """
     mtb: Annotated[Dict[str, str], Field(title='Mtb')]
     """
@@ -4341,11 +4341,11 @@ class Forcefield(BaseModel):
     )
     name: Annotated[str, Field(title='Name')]
     """
-    As the `ifp` table spells it, e.g. `54A7`.
+    The force field, e.g. `54A7`.
     """
     ifp_formats: Annotated[List[str], Field(title='Ifp Formats')]
     """
-    The IFP formats held for it, lower case.
+    The IFP formats held for it, lower case (`gxx` only once the server reads the parameter library).
     """
     mtb_formats: Annotated[List[str], Field(title='Mtb Formats')]
     """
@@ -4358,6 +4358,18 @@ class Forcefield(BaseModel):
     default: Annotated[bool, Field(title='Default')]
     """
     Whether it is the site default.
+    """
+    parameter_set: Annotated[Optional[str], Field(title='Parameter Set')] = None
+    """
+    The parameter set its IFP is rendered from, e.g. `54A7-ATB`; null while the server reads its database.
+    """
+    head_version: Annotated[Optional[int], Field(title='Head Version')] = None
+    """
+    The parameter set's newest version, served when no `version` is given; null while the server reads its database.
+    """
+    versions: Annotated[Optional[List[int]], Field(title='Versions')] = None
+    """
+    Every released version of the parameter set, oldest first; null while the server reads its database.
     """
     links: ForcefieldLinks
     """

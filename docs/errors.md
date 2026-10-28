@@ -26,6 +26,8 @@ ATBError
 │   │   ├── DuplicateMolecule    409  duplicate-molecule          (.molid, .compound_id, .molecule)
 │   │   └── RotamerJobExists     409  rotamer-job-exists          (.job_id, .state)
 │   ├── TopologyVersionGone      410  topology-version-gone, job-result-expired
+│   ├── Retired                  410  format-retired, rules-retired  (G96 and the rules file, once the
+│   │                                 server serves the parameter library)
 │   ├── ChemistryRejected        422  chemistry-rejected, infeasible-structure, ...  (.reason)
 │   │   └── RemapRefused         422  remap-refused               (.report)
 │   ├── RateLimited              429  rate-limited, burst-limit-exceeded, ...  (.retry_after, .limit)

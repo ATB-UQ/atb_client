@@ -32,27 +32,39 @@ class Forcefields(Resource):
         *,
         format: Optional[str] = None,
         rules: bool = False,
+        version: Optional[int] = None,
         ifp_hash: Optional[str] = None,
         path: Any = None,
     ):
         """``GET /forcefields/{ff}/ifp`` → text, or the path written.
 
-        ``format`` is ``"g96"`` (the server's default, ``IFP<ff>.dat``) or ``"gxx"``
-        (``<ff>.ifp``); ``rules=True`` fetches the rules file instead; ``ifp_hash``
-        selects a stored IFP version (its md5) instead of the current one."""
+        ``format`` is ``"gxx"`` (``<ff>.ifp``) or ``"g96"`` (``IFP<ff>.dat``); left
+        out, the server's default: ``g96`` while the server reads its database, ``gxx``
+        once it serves the parameter library, where ``g96`` raises :class:`Retired`.
+        ``version`` picks a version of the force field's parameter set (library
+        servers; default its head, ``forcefields.list()`` lists them; a database
+        server answers :class:`NotFound`). ``rules=True`` fetches the rules file, which
+        a library server has retired (:class:`Retired`). ``ifp_hash`` selects a stored
+        IFP version (its md5), as an old topology names it."""
         result = yield from _ops.fetch_file(
             self._client,
             f"forcefields/{ff}/ifp",
             target=path,
             default_name=f"{ff}.ifp",
-            params={"format": format, "rules": rules or None, "ifp_hash": ifp_hash},
+            params={
+                "format": format,
+                "rules": rules or None,
+                "version": version,
+                "ifp_hash": ifp_hash,
+            },
         )
         return _text_or_path(result)
 
     @operation
     def mtb(self, ff: str, *, format: Optional[str] = None, path: Any = None):
         """``GET /forcefields/{ff}/mtb`` → text, or the path written. ``format`` is
-        ``"g96"`` (default) or ``"gxx"``."""
+        ``"gxx"`` or ``"g96"``; left out, the server's default (``g96``, then ``gxx`` once
+        the server serves the parameter library, where ``g96`` raises :class:`Retired`)."""
         result = yield from _ops.fetch_file(
             self._client,
             f"forcefields/{ff}/mtb",
@@ -63,14 +75,22 @@ class Forcefields(Resource):
         return _text_or_path(result)
 
     @operation
-    def lammps(self, ff: str, *, ifp_hash: Optional[str] = None, path: Any = None):
+    def lammps(
+        self,
+        ff: str,
+        *,
+        version: Optional[int] = None,
+        ifp_hash: Optional[str] = None,
+        path: Any = None,
+    ):
         """``GET /forcefields/{ff}/lammps`` → text, or the path written: the GXX IFP
-        (``ifp_hash``: a stored version) converted for LAMMPS."""
+        converted for LAMMPS -- of ``version`` of the parameter set (library servers;
+        default its head) or of a stored version by ``ifp_hash``."""
         result = yield from _ops.fetch_file(
             self._client,
             f"forcefields/{ff}/lammps",
             target=path,
             default_name=f"{ff}.lammps",
-            params={"ifp_hash": ifp_hash},
+            params={"version": version, "ifp_hash": ifp_hash},
         )
         return _text_or_path(result)

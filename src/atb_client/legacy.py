@@ -216,8 +216,11 @@ class Molecules(_Namespace):
         """``atb_format=`` (or v0.1 ``file=``) of ``molid=``; written to ``fnme=`` (returns
         ``None``) or returned as text. ``ffVersion`` maps to v1's ``ff``.
 
-        ``ifp=<ff>`` (v0.1 ``format="GXX"``/``"G96"``, ``rules="True"``) fetches the
-        force field's IFP (or rules) file from ``GET /forcefields/{ff}/ifp`` instead."""
+        ``ifp=<ff>`` (v0.1 ``format="GXX"``/``"G96"``, ``rules="True"``; ``version=N``
+        for a version of the parameter set) fetches the force field's IFP (or rules) file
+        from ``GET /forcefields/{ff}/ifp`` instead. Once the server serves the parameter
+        library, G96 and the rules file are retired (:class:`atb_client.Retired`) and the
+        default format is GXX."""
         if "ifp" in kwargs:
             return self._download_ifp(kwargs)
         if "molid" not in kwargs:
@@ -248,11 +251,13 @@ class Molecules(_Namespace):
         rules = kwargs.get("rules", False)
         if isinstance(rules, str):
             rules = rules.lower() in ("1", "true", "yes")
+        version = kwargs.get("version")
         text = self._v1.forcefields.ifp(
             str(kwargs["ifp"]),
             format=str(fmt).lower() if fmt else None,
             rules=bool(rules),
-            ifp_hash=kwargs.get("hash"),
+            version=int(version) if version not in (None, "") else None,
+            ifp_hash=kwargs.get("hash") or kwargs.get("ifp_hash"),
         )
         fnme = kwargs.get("fnme")
         if fnme:
