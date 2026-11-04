@@ -39,7 +39,7 @@ def test_construction_warns(api):
         ("pdb_allatom_optimised", "pdb_aa_opt"),
         ("pdb_uniatom_unoptimised", "pdb_ua_unopt"),
         ("itp_allatom", "itp_aa"),
-        ("mtb96_uniatom", "mtb96_ua"),
+        ("mtb96_uniatom", "mtb96_uniatom"),  # retired: passed through, the server says 410
         ("graph.lgf", "lgf"),
         ("cif_ccd", "cif_ccd"),
     ],

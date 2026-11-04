@@ -279,7 +279,9 @@ class TopologyVersionGone(APIError):
 class Retired(APIError):
     """410 ``format-retired`` / ``rules-retired`` -- a download the server no longer offers:
     the GROMOS96 (``g96``) IFP and MTB and the rules file, since it serves the ATB parameter
-    library (2026-10). Ask for ``format="gxx"``, optionally with a ``version``."""
+    library (2026-10). Ask for ``format="gxx"``, optionally with a ``version``. A molecule's
+    GROMOS96 MTB (``mtb96_aa``/``mtb96_ua``) is retired too (2026-11): ask for ``mtb_aa``/``mtb_ua``;
+    the problem's ``instead`` member names it."""
 
 
 class ChemistryRejected(APIError):
