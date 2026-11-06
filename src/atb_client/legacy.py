@@ -58,7 +58,10 @@ ATB_FORMAT_TO_V1: Dict[str, str] = {
     "graph.lgf": "lgf",
 }
 # "mtb96" is gone: the server stopped generating the GROMOS96-format MTB (core
-# OUTPUT_VERSION 11, 2026-11-04) and answers 410 format-retired for its names.
+# OUTPUT_VERSION 11, 2026-11-04) and answers 410 format-retired for its names. So is
+# AMBER (2026-11-06): the server never wrote per-molecule AMBER files, its names
+# `amber_prmtop`/`amber_crd` pass through unmapped and answer 410 format-retired too;
+# put "amber_prmtop"/"amber_crd" back when a native AMBER writer lands.
 for _fmt in (
     "mtb",
     "top",
@@ -66,8 +69,6 @@ for _fmt in (
     "cns_top",
     "cns_param",
     "lammps",
-    "amber_prmtop",
-    "amber_crd",
     "pqr",
     "cif",
     "mol",

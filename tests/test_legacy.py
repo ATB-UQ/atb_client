@@ -40,6 +40,8 @@ def test_construction_warns(api):
         ("pdb_uniatom_unoptimised", "pdb_ua_unopt"),
         ("itp_allatom", "itp_aa"),
         ("mtb96_uniatom", "mtb96_uniatom"),  # retired: passed through, the server says 410
+        ("amber_prmtop", "amber_prmtop"),  # retired: passed through, the server says 410
+        ("amber_crd_allatom", "amber_crd_allatom"),
         ("graph.lgf", "lgf"),
         ("cif_ccd", "cif_ccd"),
     ],
