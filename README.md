@@ -6,7 +6,7 @@ Python client and command-line tool for the [Automated Topology Builder](https:/
 (ATB) API v1: submit a structure, wait for its topology, download it in the format your
 simulation engine wants, and search what already exists — from a script, with one API key.
 
-- one package, sync and async (`ATBClient`, `AsyncATBClient`), Python 3.9+
+- one package, sync and async (`ATBClient`, `AsyncATBClient`), Python 3.10+
 - dependencies: `httpx` and `pydantic` 2 only
 - retries with backoff on rate limits and transient server errors, honouring `Retry-After`
 - typed exceptions carrying the server's problem body

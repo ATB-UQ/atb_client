@@ -8,7 +8,7 @@ dynamic = ["version"]
 description = "Python client and CLI for the Automated Topology Builder (ATB) API v1"
 readme = "README.md"
 license = { text = "GPL-3.0-or-later" }
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 authors = [{ name = "ATB team, The University of Queensland" }]
 keywords = ["molecular dynamics", "force field", "topology", "GROMOS", "ATB"]
 classifiers = [
@@ -17,7 +17,6 @@ classifiers = [
     "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3 :: Only",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
@@ -32,9 +31,9 @@ dependencies = [
 
 [project.optional-dependencies]
 test = ["pytest", "respx"]
-# datamodel-code-generator is pinned: current releases no longer accept
-# --target-python-version 3.9 (0.26.5 does, checked 2026-09-23), and an
-# exact pin keeps regeneration byte-identical for the contract diff.
+# datamodel-code-generator is pinned: an exact pin keeps regeneration
+# byte-identical for the contract diff. 0.26.5 still targets Python 3.9 (see
+# scripts/generate_models.sh); that output also runs on the >=3.10 floor.
 dev = ["pytest", "respx", "ruff", "datamodel-code-generator[http]==0.26.5"]
 
 [dependency-groups]
@@ -64,7 +63,7 @@ addopts = "-ra"
 markers = ["live: hits the deployed API; needs ATB_LIVE_TESTS=1 and ATB_API_KEY"]
 
 [tool.ruff]
-target-version = "py39"
+target-version = "py310"
 line-length = 100
 src = ["src", "tests"]
 extend-exclude = ["src/atb_client/generated/models.py"]

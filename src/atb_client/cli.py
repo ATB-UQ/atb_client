@@ -99,8 +99,8 @@ def _table(value: Any) -> str:
             columns.extend(c for c in row if c not in columns)
         cells = [[_cell(row.get(c)) for c in columns] for row in value]
         widths = [max(len(c), *(len(r[i]) for r in cells)) for i, c in enumerate(columns)]
-        lines = ["  ".join(c.ljust(w) for c, w in zip(columns, widths))]
-        lines += ["  ".join(v.ljust(w) for v, w in zip(r, widths)) for r in cells]
+        lines = ["  ".join(c.ljust(w) for c, w in zip(columns, widths, strict=True))]
+        lines += ["  ".join(v.ljust(w) for v, w in zip(r, widths, strict=True)) for r in cells]
         return "\n".join(line.rstrip() for line in lines)
     if isinstance(value, list):
         return "\n".join(_cell(v) for v in value)

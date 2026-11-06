@@ -19,7 +19,7 @@ config file is ``ATB_CONFIG`` if set, else ``$XDG_CONFIG_HOME/atb/config.toml``,
     base_url = "https://atb-staging.example.org/api/v1"
     timeout = 60
 
-On Python 3.11+ the file is read with :mod:`tomllib`. On 3.9/3.10, where the package
+On Python 3.11+ the file is read with :mod:`tomllib`. On 3.10, where the package
 may not depend on ``tomli``, a minimal reader handles the subset a profile needs —
 ``[table.headers]``, ``key = value`` with basic/literal strings, integers, floats and
 booleans, and ``#`` comments — and raises :class:`ConfigurationError` on anything else

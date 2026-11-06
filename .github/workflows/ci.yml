@@ -24,12 +24,11 @@ jobs:
       - run: ruff format --check src tests
 
   test:
-    # ubuntu-latest (26.04) has no Python 3.9 build for setup-python; 24.04 still does
-    runs-on: ${{ matrix.python-version == '3.9' && 'ubuntu-24.04' || 'ubuntu-latest' }}
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13"]
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -40,13 +39,12 @@ jobs:
 
   test-min-deps:
     # the declared floors, httpx 0.27 and pydantic 2.5, on the oldest interpreter
-    # (24.04: ubuntu-latest, 26.04, has no Python 3.9 build for setup-python)
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.9"
+          python-version: "3.10"
       - run: pip install -e ".[test]" "httpx==0.27.0" "pydantic==2.5.0" "respx==0.21.1"
       - run: python -m pytest -q
 
